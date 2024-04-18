@@ -6,7 +6,7 @@ This repository contains the smart contracts for the Brainstarter ERC20 token.
 
 In order to run unit tests use `npx hardhat test` command.
 
-If you want to test the uniswap v3 integration, then edit the `hardhat.config.ts` file. Make the hardhat network be forking a real network like polygon and then run `npx hardhat run scripts/mintLiquidityPositionUniswapV3.ts --network networkName` to mint the liquidity on a localhost fork.
+If you want to test the uniswap v3 integration, then edit the `hardhat.config.ts` file. Make the hardhat network be forking a real network like polygon and then run `npx hardhat run scripts/testMintingLiquidityPositionUniswapV3.ts` to mint the liquidity on a localhost fork.
 
 ## Deployment
 

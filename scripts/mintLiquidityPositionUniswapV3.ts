@@ -1,11 +1,5 @@
 import { ethers } from 'hardhat';
-import {
-  encodeSqrtRatioX96,
-  FeeAmount,
-  Pool,
-  Position,
-  NonfungiblePositionManager,
-} from '@uniswap/v3-sdk';
+import { FeeAmount, Pool, Position, NonfungiblePositionManager } from '@uniswap/v3-sdk';
 import UniswapV3FactoryABI from '@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json';
 import NonfungiblePositionManagerABI from '@uniswap/v3-periphery/artifacts/contracts/NonfungiblePositionManager.sol/NonfungiblePositionManager.json';
 import UniswapV3PoolABI from '@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json';
@@ -23,6 +17,7 @@ type MintLiquidityPositionUniswapV3Args = {
   tokenBAddress: string;
   tokenAAmount: bigint;
   tokenBAmount: bigint;
+  price: string;
   fee?: FeeAmount;
 };
 
@@ -43,26 +38,20 @@ async function getPoolData(poolContract: any) {
   };
 }
 
-function getSqrtRatioX96WithPrice(price: string) {
-  const [whole, fractional] = price.split('.');
-  const numberWithoutDecimalPoint = `${whole === '0' ? '' : whole}${fractional}`;
-  const denominator = `1${Array.from(
-    { length: numberWithoutDecimalPoint.length - 1 },
-    () => '0',
-  ).join('')}`;
-  console.log('price', price);
-  console.log('numberWithoutDecimalPoint', numberWithoutDecimalPoint);
-  console.log('denominator', denominator);
-  return encodeSqrtRatioX96(numberWithoutDecimalPoint, denominator).toString();
-}
-
-async function mintLiquidtyPositionUniswapV3({
+export async function mintLiquidtyPositionUniswapV3({
   tokenAAddress,
   tokenAAmount,
   tokenBAddress,
   tokenBAmount,
+  price,
   fee = FeeAmount.MEDIUM,
 }: MintLiquidityPositionUniswapV3Args) {
+  const isABigger = BigInt(tokenAAddress) > BigInt(tokenBAddress);
+  if (isABigger) {
+    throw new Error(
+      'Order tokens by address in ascending order, otherwise Uniswap will fail',
+    );
+  }
   const tokenA = await ethers.getContractAt('ERC20Upgradeable', tokenAAddress);
   const tokenB = await ethers.getContractAt('ERC20Upgradeable', tokenBAddress);
 
@@ -84,7 +73,7 @@ async function mintLiquidtyPositionUniswapV3({
     tokenAAddress,
     tokenBAddress,
     FeeAmount.MEDIUM,
-    getSqrtRatioX96WithPrice((Number(tokenBAmount) / Number(tokenAAmount)).toString()),
+    price,
   );
 
   const poolAddress: string = await (factory.connect(deployer) as any).getPool(
@@ -166,58 +155,4 @@ async function mintLiquidtyPositionUniswapV3({
   console.log('deployerBTokenBalance', deployerBTokenBalance.toString());
   console.log('poolATokenBalance', poolATokenBalance.toString());
   console.log('poolBTokenBalance', poolBTokenBalance.toString());
-}
-
-if (require.main === module) {
-  async function main() {
-    // By default if you don't provide these env variables, it will deploy two tokens and use them for liquidity
-    // If you're testing remember to change the hardhat config for hardhat network to be forking from a real network
-    const erc20Factory = await ethers.getContractFactory('MockERC20');
-
-    let tokenAAmount = BigInt(
-      (process.env.TOKEN_A_AMOUNT as string) || ethers.parseEther('125000'),
-    );
-    let tokenBAmount = BigInt(
-      (process.env.TOKEN_B_AMOUNT as string) || ethers.parseEther('80000'),
-    );
-
-    let tokenAAddress =
-      (process.env.TOKEN_A_ADDRESS as string) ||
-      (await (async () => {
-        let tokenA = await erc20Factory.deploy('AAA', 'AAA', tokenAAmount);
-        return tokenA.getAddress();
-      })());
-    let tokenBAddress =
-      (process.env.TOKEN_B_ADDRESS as string) ||
-      (await (async () => {
-        let tokenB = await erc20Factory.deploy('BBB', 'BBB', tokenBAmount);
-        return tokenB.getAddress();
-      })());
-
-    const isABigger = BigInt(tokenAAddress) > BigInt(tokenBAddress);
-    [tokenAAddress, tokenBAddress] = isABigger
-      ? [tokenBAddress, tokenAAddress]
-      : [tokenAAddress, tokenBAddress];
-    [tokenAAmount, tokenBAmount] = isABigger
-      ? [tokenBAmount, tokenAAmount]
-      : [tokenAAmount, tokenBAmount];
-
-    console.log('Mining liquidity for', {
-      tokenAAddress,
-      tokenBAddress,
-      tokenAAmount,
-      tokenBAmount,
-    });
-
-    mintLiquidtyPositionUniswapV3({
-      tokenAAddress,
-      tokenBAddress,
-      tokenAAmount,
-      tokenBAmount,
-    }).catch((err) => {
-      console.error(err);
-      process.exit(1);
-    });
-  }
-  main();
 }
