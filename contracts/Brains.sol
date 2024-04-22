@@ -54,11 +54,13 @@ contract Brains is
   function initialize(
     address _owner,
     uint256 _initialSupply,
-    uint256 _yearlyMintLimit
+    uint256 _yearlyMintLimit,
+    string memory _name,
+    string memory _symbol
   ) public initializer {
-    __ERC20_init('Brains', 'BRAINS');
+    __ERC20_init(_name, _symbol);
     __ERC20Burnable_init();
-    __ERC20Permit_init('Brains');
+    __ERC20Permit_init(_name);
     __Ownable_init(_owner);
     __UUPSUpgradeable_init();
 

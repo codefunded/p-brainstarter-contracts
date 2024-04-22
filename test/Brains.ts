@@ -16,7 +16,7 @@ describe('Brains', function () {
     const BrainsFactory = await hre.ethers.getContractFactory('Brains');
     const brainsProxy = await upgrades.deployProxy(
       BrainsFactory,
-      [owner.address, INITIAL_SUPPLY, YEARLY_MINT_LIMIT],
+      [owner.address, INITIAL_SUPPLY, YEARLY_MINT_LIMIT, "Brains", "BRAINS"],
       {
         kind: 'uups',
       },
