@@ -7,4 +7,11 @@ export const deploymentConfig = {
       yearlyMintLimit: ethers.parseEther(String(100_000n)),
     },
   },
+  Locker: {
+    args: {
+      preSaleToken: ethers.ZeroAddress,
+      strategicOrPrivateSaleToken: ethers.ZeroAddress,
+      seedToken: ethers.ZeroAddress,
+    },
+  },
 };
