@@ -53,6 +53,7 @@ const deployStakeNFTs: DeployFunction = async function ({
     [
       deployer,
       await brainsStakingProxy.getAddress(),
+      brains.address,
       deploymentConfig.Locker.args.preSaleToken,
       deploymentConfig.Locker.args.strategicOrPrivateSaleToken,
       deploymentConfig.Locker.args.seedToken,

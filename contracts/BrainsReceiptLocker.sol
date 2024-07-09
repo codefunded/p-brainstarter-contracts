@@ -23,6 +23,7 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
   /// @custom:storage-location erc7201:brains.receipt-locker
   struct StakingStorage {
     BrainsStaking staking;
+    IERC20 underlyingToken;
     IERC20 preSaleToken;
     IERC20 strategicPrivateSaleToken;
     IERC20 seedToken;
@@ -41,6 +42,7 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
   function initialize(
     address _owner,
     BrainsStaking _staking,
+    IERC20 _underlyingToken,
     IERC20 _preSaleToken,
     IERC20 _strategicPrivateSaleToken,
     IERC20 _seedToken
@@ -50,6 +52,7 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
 
     StakingStorage storage s = _getStorage();
     s.staking = _staking;
+    s.underlyingToken = _underlyingToken;
     s.preSaleToken = _preSaleToken;
     s.strategicPrivateSaleToken = _strategicPrivateSaleToken;
     s.seedToken = _seedToken;
@@ -76,6 +79,7 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
       ? UnlockFeeCalculator.LockType.StrategicOrPrivate
       : UnlockFeeCalculator.LockType.Seed;
 
+    s.underlyingToken.approve(address(s.staking), _amount);
     s.staking.stakeFor(_msgSender(), _amount, lockType);
   }
 
