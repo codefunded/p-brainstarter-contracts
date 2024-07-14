@@ -1,32 +1,12 @@
 import { time, loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers';
 import { expect } from 'chai';
-import hre, { ethers, upgrades } from 'hardhat';
+import { ethers, upgrades } from 'hardhat';
+import { deployBrains } from './helpers/deploy';
 
 const INITIAL_SUPPLY = ethers.parseEther(String(1_000_000_000n));
 const YEARLY_MINT_LIMIT = ethers.parseEther(String(100_000n));
 
 describe('Brains', function () {
-  // We define a fixture to reuse the same setup in every test.
-  // We use loadFixture to run this setup once, snapshot that state,
-  // and reset Hardhat Network to that snapshot in every test.
-  async function deployBrains() {
-    // Contracts are deployed using the first signer/account by default
-    const [owner] = await hre.ethers.getSigners();
-
-    const BrainsFactory = await hre.ethers.getContractFactory('Brains');
-    const brainsProxy = await upgrades.deployProxy(
-      BrainsFactory,
-      [owner.address, INITIAL_SUPPLY, YEARLY_MINT_LIMIT],
-      {
-        kind: 'uups',
-      },
-    );
-    await brainsProxy.waitForDeployment();
-
-    const brains = await ethers.getContractAt('Brains', await brainsProxy.getAddress());
-    return { brains, owner };
-  }
-
   describe('Deployment', function () {
     it('Should set the correct token symbol', async function () {
       const { brains } = await loadFixture(deployBrains);

@@ -6,7 +6,7 @@ const deployBrains: DeployFunction = async function ({
   getUnnamedAccounts,
   deployments,
 }) {
-  const { log } = deployments;
+  const { log, save } = deployments;
   const [deployer] = await getUnnamedAccounts();
 
   const BrainsFactory = await ethers.getContractFactory('Brains');
@@ -23,7 +23,11 @@ const deployBrains: DeployFunction = async function ({
     },
   );
   await brains.waitForDeployment();
-  log(await brains.getAddress());
+  log(`BRAINS: ${await brains.getAddress()}`);
+  await save('Brains', {
+    abi: brains.interface.format(),
+    address: await brains.getAddress(),
+  });
 
   log('-----BRAINS deployed-----');
 };
