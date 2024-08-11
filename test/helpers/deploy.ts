@@ -27,18 +27,18 @@ export async function deployBrains() {
     await dopamineProxy.getAddress(),
   );
 
-  const IlliquidStakeFactory = await hre.ethers.getContractFactory('IlliquidStake');
-  const illiquidStakeProxy = await upgrades.deployProxy(
-    IlliquidStakeFactory,
+  const LockedStakeFactory = await hre.ethers.getContractFactory('LockedStake');
+  const lockedStakeProxy = await upgrades.deployProxy(
+    LockedStakeFactory,
     [owner.address],
     {
       kind: 'uups',
     },
   );
-  await illiquidStakeProxy.waitForDeployment();
-  const illiquidStake = await ethers.getContractAt(
-    'IlliquidStake',
-    await illiquidStakeProxy.getAddress(),
+  await lockedStakeProxy.waitForDeployment();
+  const lockedStake = await ethers.getContractAt(
+    'LockedStake',
+    await lockedStakeProxy.getAddress(),
   );
 
   const LiquidStakeFactory = await hre.ethers.getContractFactory('LiquidStake');
@@ -61,7 +61,7 @@ export async function deployBrains() {
     [
       owner.address,
       await brains.getAddress(),
-      await illiquidStake.getAddress(),
+      await lockedStake.getAddress(),
       await liquidStake.getAddress(),
     ],
     {
@@ -75,8 +75,8 @@ export async function deployBrains() {
     await brainsStakingProxy.getAddress(),
   );
 
-  await illiquidStake.grantRole(
-    await illiquidStake.MANAGER_ROLE(),
+  await lockedStake.grantRole(
+    await lockedStake.MANAGER_ROLE(),
     await brainsStakingProxy.getAddress(),
   );
 
@@ -85,5 +85,12 @@ export async function deployBrains() {
     await brainsStakingProxy.getAddress(),
   );
 
-  return { brains, brainsStaking, illiquidStake, liquidStake, dopamine, owner };
+  return {
+    brains,
+    brainsStaking,
+    lockedStake,
+    liquidStake,
+    dopamine,
+    owner,
+  };
 }

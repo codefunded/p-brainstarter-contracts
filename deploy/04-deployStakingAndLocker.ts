@@ -15,10 +15,10 @@ const deployStakeNFTs: DeployFunction = async function ({
     'LiquidStake',
     liquidStakeDeployment.address,
   );
-  const illiquidStakeDeployment = await get('IlliquidStake');
-  const illiquidStake = await ethers.getContractAt(
-    'IlliquidStake',
-    illiquidStakeDeployment.address,
+  const lockedStakeDeployment = await get('LockedStake');
+  const lockedStake = await ethers.getContractAt(
+    'LockedStake',
+    lockedStakeDeployment.address,
   );
 
   const BrainsStakingFactory = await ethers.getContractFactory('BrainsStaking');
@@ -27,7 +27,7 @@ const deployStakeNFTs: DeployFunction = async function ({
     [
       deployer,
       brains.address,
-      await illiquidStake.getAddress(),
+      await lockedStake.getAddress(),
       await liquidStake.getAddress(),
     ],
     {
@@ -37,8 +37,8 @@ const deployStakeNFTs: DeployFunction = async function ({
   await brainsStakingProxy.waitForDeployment();
   log(`BrainsStaking: ${await brainsStakingProxy.getAddress()}`);
 
-  await illiquidStake.grantRole(
-    await illiquidStake.MANAGER_ROLE(),
+  await lockedStake.grantRole(
+    await lockedStake.MANAGER_ROLE(),
     await brainsStakingProxy.getAddress(),
   );
 

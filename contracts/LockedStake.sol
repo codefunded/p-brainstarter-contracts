@@ -14,7 +14,7 @@ error LockedStake__StakeTransfersNotAllowed();
 /**
  * This contract represents a locked stake, not transferable.
  */
-contract IlliquidStake is
+contract LockedStake is
   Initializable,
   ERC721Upgradeable,
   ERC721EnumerableUpgradeable,
@@ -65,9 +65,7 @@ contract IlliquidStake is
     uint256 tokenId,
     address auth
   ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) returns (address) {
-    if (auth != address(0)) {
-      revert LockedStake__StakeTransfersNotAllowed();
-    }
+    require(auth == address(0), LockedStake__StakeTransfersNotAllowed());
     return super._update(to, tokenId, auth);
   }
 

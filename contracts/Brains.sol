@@ -71,17 +71,14 @@ contract Brains is
 
   function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-  function burn(uint256 amount) public override {
-    _burn(_msgSender(), amount);
-  }
-
   function batchTransfer(
     address[] calldata recipients,
     uint256[] calldata amounts
   ) public {
-    if (recipients.length != amounts.length) {
-      revert Brains__BatchTransferArgsLengthMismatch();
-    }
+    require(
+      recipients.length == amounts.length,
+      Brains__BatchTransferArgsLengthMismatch()
+    );
 
     for (uint256 i = 0; i < recipients.length; i++) {
       transfer(recipients[i], amounts[i]);
@@ -91,20 +88,20 @@ contract Brains is
   function mint(address account, uint256 amount) public onlyOwner {
     MainStorage storage s = _getMainStorage();
 
-    if (
-      DateTimeLib.addYears(s.contractDeploymentTimestamp, YEARS_WITH_ALLOWED_MINT) <
-      block.timestamp
-    ) {
-      revert Brains__MintPeriodEnded();
-    }
+    require(
+      block.timestamp <
+        DateTimeLib.addYears(s.contractDeploymentTimestamp, YEARS_WITH_ALLOWED_MINT),
+      Brains__MintPeriodEnded()
+    );
 
     (uint currentYear, , ) = DateTimeLib.timestampToDate(block.timestamp);
     s.mintedInYear[currentYear] += amount;
     uint256 alreadyMintedInYear = s.mintedInYear[currentYear];
 
-    if (alreadyMintedInYear > s.yearlyMintLimit) {
-      revert Brains__MintLimitExceeded(s.yearlyMintLimit, amount, alreadyMintedInYear);
-    }
+    require(
+      alreadyMintedInYear <= s.yearlyMintLimit,
+      Brains__MintLimitExceeded(s.yearlyMintLimit, amount, alreadyMintedInYear)
+    );
 
     _mint(account, amount);
   }

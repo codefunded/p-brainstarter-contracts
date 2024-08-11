@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import { UnlockFeeCalculator } from './UnlockFeeCalculator.sol';
+import { UnlockFeeCalculator, LockType } from './UnlockFeeCalculator.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { OwnableUpgradeable } from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -11,9 +11,18 @@ import { BrainsStaking } from './BrainsStaking.sol';
 /**
  * This contract is responsible for exchanging the receipt tokens from pre-sale, strategic and seed sales
  * to actual $BRAINS token and locking it on staking right away depending on the sale type.
+ * @dev IMPORTANT: the $BRAINS token must be present in the contract before calling the exchangeTokensAndStake function.
+ * It is the responsibility of the inital admin to send enough $BRAINS tokens to this contract.
  */
 contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   error BrainsReceiptLocker__InvalidToken();
+
+  event TokensExchangedAndStaked(
+    address indexed user,
+    uint256 amount,
+    address token,
+    LockType lockType
+  );
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -73,14 +82,16 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
     );
     SafeERC20.safeTransferFrom(_token, _msgSender(), address(this), _amount);
 
-    UnlockFeeCalculator.LockType lockType = _token == s.preSaleToken
-      ? UnlockFeeCalculator.LockType.PreSale
+    LockType lockType = _token == s.preSaleToken
+      ? LockType.PreSale
       : _token == s.strategicPrivateSaleToken
-      ? UnlockFeeCalculator.LockType.StrategicOrPrivate
-      : UnlockFeeCalculator.LockType.Seed;
+      ? LockType.StrategicOrPrivate
+      : LockType.Seed;
 
     s.underlyingToken.approve(address(s.staking), _amount);
     s.staking.stakeFor(_msgSender(), _amount, lockType);
+
+    emit TokensExchangedAndStaked(_msgSender(), _amount, address(_token), lockType);
   }
 
   function _authorizeUpgrade(

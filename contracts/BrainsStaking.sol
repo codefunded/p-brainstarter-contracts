@@ -7,9 +7,9 @@ import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/Saf
 import { OwnableUpgradeable } from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import { UUPSUpgradeable } from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import { IlliquidStake } from './IlliquidStake.sol';
+import { LockedStake } from './LockedStake.sol';
 import { LiquidStake } from './LiquidStake.sol';
-import { UnlockFeeCalculator } from './UnlockFeeCalculator.sol';
+import { UnlockFeeCalculator, LockType } from './UnlockFeeCalculator.sol';
 
 contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   using SafeERC20 for IERC20;
@@ -20,21 +20,23 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   error BrainsStaking__StakeNotMatured();
   error BrainsStaking__WithdrawalNotAllowedBeforeStakeMatured();
   error BrainsStaking__WithdrawalFeeGreaterThanStakedAmount();
+  error BrainsStaking__NotEnoughFeesCollected();
 
   event LiquidStaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
-  event IlliquidStaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
+  event LockedStaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
   event LiquidUnstaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
-  event IlliquidUnstaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
+  event LockedUnstaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
+  event LiquidStakeThresholdSet(uint256 threshold);
 
   enum StakeType {
-    Illiquid,
+    Locked,
     Liquid
   }
 
   struct StakeInfo {
     uint256 stakeId;
     uint256 amount;
-    UnlockFeeCalculator.LockType lockType;
+    LockType lockType;
     uint256 stakedAt;
     StakeType stakeType;
   }
@@ -42,14 +44,15 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   /// @custom:storage-location erc7201:brains.staking
   struct StakingStorage {
     IERC20 stakingToken;
-    IlliquidStake illiquidStakes;
+    LockedStake lockedStakes;
     LiquidStake liquidStakes;
     /// @dev user can have multiple liquid stakes therefore mapping from stake id to stake info
     mapping(uint256 => StakeInfo) liquidStakeIdToInfo;
-    /// @dev One illiquid stake per user with a cap of liquidStakeThreshold
-    mapping(address => StakeInfo) illiquidStakeIdToInfo;
+    /// @dev One locked stake per user with a cap of liquidStakeThreshold
+    mapping(address => StakeInfo) lockedStakeIdToInfo;
     uint256 liquidStakeThreshold;
     EnumerableSet.AddressSet stakers;
+    uint256 collectedFees;
   }
 
   // keccak256(abi.encode(uint256(keccak256('brains.staking')) - 1)) & ~bytes32(uint256(0xff));
@@ -64,46 +67,22 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
   // ***************** VIEW FUNCTIONS *****************
 
-  function getIlliquidStakeInfo(
+  function getLockedStakeInfo(
     address _user
-  )
-    external
-    view
-    returns (uint256 stakeId, uint256 amount, uint256 stakedAt, bool exists)
-  {
-    StakingStorage storage s = _getStorage();
-    StakeInfo storage stakeInfo = s.illiquidStakeIdToInfo[_user];
-
-    if (stakeInfo.amount == 0) return (0, 0, 0, false);
-
-    return (stakeInfo.stakeId, stakeInfo.amount, stakeInfo.stakedAt, true);
+  ) external view returns (StakeInfo memory stakeInfo) {
+    stakeInfo = _getStorage().lockedStakeIdToInfo[_user];
   }
 
   function getLiquidStakeInfo(
     uint256 _stakeId
-  )
-    external
-    view
-    returns (
-      uint256 amount,
-      UnlockFeeCalculator.LockType lockType,
-      StakeType stakeType,
-      uint256 stakedAt
-    )
-  {
-    StakeInfo storage stakeInfo = _getStorage().liquidStakeIdToInfo[_stakeId];
-    return (
-      stakeInfo.amount,
-      stakeInfo.lockType,
-      stakeInfo.stakeType,
-      stakeInfo.stakedAt
-    );
+  ) external view returns (StakeInfo memory stakeInfo) {
+    stakeInfo = _getStorage().liquidStakeIdToInfo[_stakeId];
   }
 
   function getUserTotalStakedAmount(address _user) external view returns (uint256) {
     StakingStorage storage s = _getStorage();
     uint256 amountOfLiquidStakes = s.liquidStakes.balanceOf(_user);
-    uint256 totalAmount = s.illiquidStakeIdToInfo[_user].amount;
+    uint256 totalAmount = s.lockedStakeIdToInfo[_user].amount;
 
     for (uint256 i = 0; i < amountOfLiquidStakes; i++) {
       uint256 tokenId = s.liquidStakes.tokenOfOwnerByIndex(_user, i);
@@ -116,15 +95,15 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     return _getStorage().liquidStakeThreshold;
   }
 
-  function getIlliquidBeforeMaturedUnstakeFee(
+  function getLockedStakeBeforeMaturedUnstakeFee(
     address _address
   ) external view returns (uint256) {
     StakingStorage storage s = _getStorage();
     return
       UnlockFeeCalculator.getUnlockFeeAmount(
-        s.illiquidStakeIdToInfo[_address].lockType,
-        s.illiquidStakeIdToInfo[_address].amount,
-        s.illiquidStakeIdToInfo[_address].stakedAt
+        s.lockedStakeIdToInfo[_address].lockType,
+        s.lockedStakeIdToInfo[_address].amount,
+        s.lockedStakeIdToInfo[_address].stakedAt
       );
   }
 
@@ -140,8 +119,12 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
       );
   }
 
-  function getIlliquidStakeAddress() external view returns (address) {
-    return address(_getStorage().illiquidStakes);
+  function getCollectedFees() external view returns (uint256) {
+    return _getStorage().collectedFees;
+  }
+
+  function getLockedStakeAddress() external view returns (address) {
+    return address(_getStorage().lockedStakes);
   }
 
   function getLiquidStakeAddress() external view returns (address) {
@@ -166,7 +149,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   function initialize(
     address _owner,
     IERC20 _stakingToken,
-    IlliquidStake _illiquidStakes,
+    LockedStake _lockedStakes,
     LiquidStake _liquidStakes
   ) public initializer {
     __Ownable_init(_owner);
@@ -174,7 +157,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     StakingStorage storage s = _getStorage();
     s.stakingToken = _stakingToken;
-    s.illiquidStakes = _illiquidStakes;
+    s.lockedStakes = _lockedStakes;
     s.liquidStakes = _liquidStakes;
   }
 
@@ -186,12 +169,13 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   function setLiquidStakeThreshold(uint256 _threshold) external onlyOwner {
     StakingStorage storage s = _getStorage();
     s.liquidStakeThreshold = _threshold;
+    emit LiquidStakeThresholdSet(_threshold);
   }
 
   /**
-   * Stake tokens for a user. If the liquid stake threshold is set to 0, the whole stake will be illiquid.
+   * Stake tokens for a user. If the liquid stake threshold is set to 0, the whole stake will be illiquid (locked).
    * When the liquid stake threshold is set to a value greater than 0, the stake will be split into liquid and
-   * illiquid. The liquid stake will be minted in multiples of the liquid stake threshold and the remaining
+   * illiquid (locked). The liquid stake will be minted in multiples of the liquid stake threshold and the remaining
    * amount will be staked as illiquid.
    * @param _staker address to stake for
    * @param _amount amount to stake
@@ -199,11 +183,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
    * for strategic/private and seed investors will be handled through BrainsReceiptLocker contract which will
    * determine the lock type based on the receipt token they got from ICO)
    */
-  function stakeFor(
-    address _staker,
-    uint256 _amount,
-    UnlockFeeCalculator.LockType _lockType
-  ) external {
+  function stakeFor(address _staker, uint256 _amount, LockType _lockType) external {
     StakingStorage storage s = _getStorage();
 
     s.stakingToken.safeTransferFrom(_msgSender(), address(this), _amount);
@@ -211,28 +191,37 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     s.stakers.add(_staker);
 
     if (s.liquidStakeThreshold == 0) {
-      _mintOrSetIlliquidStakeData(_staker, _amount, _lockType);
+      _mintOrSetLockedStakeData(
+        _staker,
+        s.lockedStakeIdToInfo[_staker].amount + _amount,
+        _lockType
+      );
       return;
     }
 
     uint256 howManyLiquidStakesToMint = _amount / s.liquidStakeThreshold;
     uint256 remainingAmountToAddToStake = _amount % s.liquidStakeThreshold;
-    uint256 existingIlliquidStakeAmount = s.illiquidStakeIdToInfo[_staker].amount;
+    uint256 existingLockedStakeAmount = s.lockedStakeIdToInfo[_staker].amount;
 
-    // If no previous illiquid stake, or existing one is empty, handle differently
-    if (existingIlliquidStakeAmount == 0) {
-      _mintOrSetIlliquidStakeData(_staker, remainingAmountToAddToStake, _lockType);
+    if (remainingAmountToAddToStake == 0) {
+      _mintLiquidStakes(howManyLiquidStakesToMint, _staker, _lockType);
+      return;
+    }
+
+    // If no previous locked stake, or existing one is empty, handle differently
+    if (existingLockedStakeAmount == 0) {
+      _mintOrSetLockedStakeData(_staker, remainingAmountToAddToStake, _lockType);
     } else {
-      uint256 newTotalAmount = existingIlliquidStakeAmount + remainingAmountToAddToStake;
+      uint256 newTotalAmount = existingLockedStakeAmount + remainingAmountToAddToStake;
       if (newTotalAmount >= s.liquidStakeThreshold) {
-        howManyLiquidStakesToMint++;
-        s.illiquidStakeIdToInfo[_staker].amount = newTotalAmount % s.liquidStakeThreshold;
+        howManyLiquidStakesToMint += newTotalAmount / s.liquidStakeThreshold;
+        s.lockedStakeIdToInfo[_staker].amount = newTotalAmount % s.liquidStakeThreshold;
       } else {
-        s.illiquidStakeIdToInfo[_staker].amount = newTotalAmount;
+        s.lockedStakeIdToInfo[_staker].amount = newTotalAmount;
       }
-      _mintOrSetIlliquidStakeData(
+      _mintOrSetLockedStakeData(
         _staker,
-        s.illiquidStakeIdToInfo[_staker].amount,
+        s.lockedStakeIdToInfo[_staker].amount,
         _lockType
       );
     }
@@ -270,29 +259,29 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   }
 
   /**
-   * Allows the user to unstake their illiquid after it has matured. This operation will not incur a fee and
+   * Allows the user to unstake their locked stake after it has matured. This operation will not incur a fee and
    * revert if the stake has not matured yet.
    */
-  function unstakeIlliquid() external {
+  function unstakeLocked() external {
     StakingStorage storage s = _getStorage();
     require(
       UnlockFeeCalculator.getUnlockFeeAmount(
-        s.illiquidStakeIdToInfo[_msgSender()].lockType,
-        s.illiquidStakeIdToInfo[_msgSender()].amount,
-        s.illiquidStakeIdToInfo[_msgSender()].stakedAt
+        s.lockedStakeIdToInfo[_msgSender()].lockType,
+        s.lockedStakeIdToInfo[_msgSender()].amount,
+        s.lockedStakeIdToInfo[_msgSender()].stakedAt
       ) == 0,
       BrainsStaking__StakeNotMatured()
     );
 
-    _unstakeIlliquid(_msgSender());
+    _unstakeLocked(_msgSender());
   }
 
   /**
-   * Allows the user to unstake their illiquid stake before it has matured. This operation will
-   * incur a fee that can be calculated using the `getIlliquidBeforeMaturedUnstakeFee` function.
+   * Allows the user to unstake their locked stake stake before it has matured. This operation will
+   * incur a fee that can be calculated using the `getLockedStakeBeforeMaturedUnstakeFee` function.
    */
-  function unstakeIlliquidBeforeMaturedWithFee() external {
-    _unstakeIlliquid(_msgSender());
+  function unstakeLockedBeforeMaturedWithFee() external {
+    _unstakeLocked(_msgSender());
   }
 
   /**
@@ -301,41 +290,47 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
    * @param _amount amount of the token to withdraw
    */
   function withdrawTokens(address _token, uint256 _amount) external onlyOwner {
-    // ADD GUARD TO NOT ALLOW WITHDRAWAL OF STAKING TOKEN
-    IERC20(_token).safeTransfer(_msgSender(), _amount);
+    StakingStorage storage s = _getStorage();
+    if (_token != address(s.stakingToken)) {
+      IERC20(_token).safeTransfer(_msgSender(), _amount);
+      return;
+    }
+    require(_amount <= s.collectedFees, BrainsStaking__NotEnoughFeesCollected());
+    s.collectedFees -= _amount;
+    s.stakingToken.safeTransfer(_msgSender(), _amount);
   }
 
   // ***************** INTERNAL FUNCTIONS *****************
 
-  function _mintOrSetIlliquidStakeData(
+  function _mintOrSetLockedStakeData(
     address _staker,
-    uint256 stakeAmount,
-    UnlockFeeCalculator.LockType _lockType
+    uint256 _stakeAmount,
+    LockType _lockType
   ) internal {
     StakingStorage storage s = _getStorage();
-    uint256 illiquidStakeId = s.illiquidStakes.balanceOf(_staker) > 0
-      ? s.illiquidStakes.getTokenIdFromAddress(_staker)
-      : s.illiquidStakes.safeMint(_staker);
+    uint256 lockedStakeId = s.lockedStakes.balanceOf(_staker) > 0
+      ? s.lockedStakes.getTokenIdFromAddress(_staker)
+      : s.lockedStakes.safeMint(_staker);
 
-    s.illiquidStakeIdToInfo[_staker].stakeId = illiquidStakeId;
-    s.illiquidStakeIdToInfo[_staker].amount = stakeAmount;
-    s.illiquidStakeIdToInfo[_staker].stakeType = StakeType.Illiquid;
-    s.illiquidStakeIdToInfo[_staker].lockType = _lockType;
-    s.illiquidStakeIdToInfo[_staker].stakedAt = block.timestamp;
+    s.lockedStakeIdToInfo[_staker].stakeId = lockedStakeId;
+    s.lockedStakeIdToInfo[_staker].amount = _stakeAmount;
+    s.lockedStakeIdToInfo[_staker].stakeType = StakeType.Locked;
+    s.lockedStakeIdToInfo[_staker].lockType = _lockType;
+    s.lockedStakeIdToInfo[_staker].stakedAt = block.timestamp;
 
-    emit IlliquidStaked(_staker, illiquidStakeId, stakeAmount);
+    emit LockedStaked(_staker, lockedStakeId, _stakeAmount);
   }
 
   function _mintLiquidStakes(
     uint256 _howManyLiquidStakesToMint,
     address _staker,
-    UnlockFeeCalculator.LockType _lockType
+    LockType _lockType
   ) internal {
     StakingStorage storage s = _getStorage();
     uint256[] memory liquidStakeIds = new uint256[](_howManyLiquidStakesToMint);
     for (uint256 i = 0; i < _howManyLiquidStakesToMint; i++) {
       liquidStakeIds[i] = s.liquidStakes.safeMint(_staker);
-      s.illiquidStakeIdToInfo[_staker].stakeId = liquidStakeIds[i];
+      s.liquidStakeIdToInfo[liquidStakeIds[i]].stakeId = liquidStakeIds[i];
       s.liquidStakeIdToInfo[liquidStakeIds[i]].amount = s.liquidStakeThreshold;
       s.liquidStakeIdToInfo[liquidStakeIds[i]].stakeType = StakeType.Liquid;
       s.liquidStakeIdToInfo[liquidStakeIds[i]].lockType = _lockType;
@@ -360,53 +355,45 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     );
 
     s.liquidStakes.burnById(_stakeId);
-    s.stakingToken.safeTransfer(
-      _msgSender(),
-      s.liquidStakeIdToInfo[_stakeId].amount - unlockFee
-    );
+    uint256 amountToUnstake = s.liquidStakeIdToInfo[_stakeId].amount - unlockFee;
+    s.stakingToken.safeTransfer(_msgSender(), amountToUnstake);
+    s.collectedFees += unlockFee;
 
     if (
       s.liquidStakes.balanceOf(_msgSender()) == 0 &&
-      s.illiquidStakes.balanceOf(_msgSender()) == 0
+      s.lockedStakes.balanceOf(_msgSender()) == 0
     ) {
       s.stakers.remove(_msgSender());
     }
 
-    emit LiquidUnstaked(
-      _msgSender(),
-      _stakeId,
-      s.liquidStakeIdToInfo[_stakeId].amount - unlockFee
-    );
+    delete s.liquidStakeIdToInfo[_stakeId];
+
+    emit LiquidUnstaked(_msgSender(), _stakeId, amountToUnstake);
   }
 
-  function _unstakeIlliquid(address _staker) internal {
+  function _unstakeLocked(address _staker) internal {
     StakingStorage storage s = _getStorage();
 
     uint256 unlockFee = UnlockFeeCalculator.getUnlockFeeAmount(
-      s.illiquidStakeIdToInfo[_staker].lockType,
-      s.illiquidStakeIdToInfo[_staker].amount,
-      s.illiquidStakeIdToInfo[_staker].stakedAt
+      s.lockedStakeIdToInfo[_staker].lockType,
+      s.lockedStakeIdToInfo[_staker].amount,
+      s.lockedStakeIdToInfo[_staker].stakedAt
     );
+    s.collectedFees += unlockFee;
 
-    uint256 illiquidTokenId = s.illiquidStakes.getTokenIdFromAddress(_staker);
-    s.illiquidStakes.burnById(illiquidTokenId);
-    s.stakingToken.safeTransfer(
-      _msgSender(),
-      s.illiquidStakeIdToInfo[_staker].amount - unlockFee
-    );
+    uint256 lockedTokenId = s.lockedStakes.getTokenIdFromAddress(_staker);
+    s.lockedStakes.burnById(lockedTokenId);
+    uint256 amountToUnstake = s.lockedStakeIdToInfo[_staker].amount - unlockFee;
+    s.stakingToken.safeTransfer(_msgSender(), amountToUnstake);
 
     if (
       s.liquidStakes.balanceOf(_msgSender()) == 0 &&
-      s.illiquidStakes.balanceOf(_msgSender()) == 0
+      s.lockedStakes.balanceOf(_msgSender()) == 0
     ) {
       s.stakers.remove(_msgSender());
     }
 
-    emit IlliquidUnstaked(
-      _msgSender(),
-      illiquidTokenId,
-      s.illiquidStakeIdToInfo[_staker].amount - unlockFee
-    );
+    emit LockedUnstaked(_msgSender(), lockedTokenId, amountToUnstake);
   }
 
   function _authorizeUpgrade(

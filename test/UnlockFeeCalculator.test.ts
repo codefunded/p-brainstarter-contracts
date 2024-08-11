@@ -20,19 +20,19 @@ describe('UnlockFeeCalculator', () => {
       );
 
       await expect(
-        brainsStaking.connect(other).unstakeIlliquid(),
+        brainsStaking.connect(other).unstakeLocked(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await expect(
-        brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee(),
+        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await time.increase(time.duration.days(13 * 30)); // 13 months to get the possibility to withdraw
-      await expect(brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee()).to
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to
         .not.be.reverted;
     });
 
@@ -50,13 +50,13 @@ describe('UnlockFeeCalculator', () => {
       );
 
       await expect(
-        brainsStaking.connect(other).unstakeIlliquid(),
+        brainsStaking.connect(other).unstakeLocked(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await expect(
-        brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee(),
+        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
@@ -66,7 +66,7 @@ describe('UnlockFeeCalculator', () => {
         method: 'evm_snapshot',
       });
 
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // first fee step for +M13 is 65%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('35'));
 
@@ -79,7 +79,7 @@ describe('UnlockFeeCalculator', () => {
       });
 
       await time.increase(time.duration.days(30));
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee step for +M14 is 60%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('40'));
 
@@ -89,7 +89,7 @@ describe('UnlockFeeCalculator', () => {
       });
 
       await time.increase(time.duration.days(60));
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee step for +M15 is 55%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('45'));
     });
@@ -112,7 +112,7 @@ describe('UnlockFeeCalculator', () => {
 
       await time.increase(time.duration.days(30 * 25));
 
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee for last step in M25 is 5%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('95'));
 
@@ -122,7 +122,7 @@ describe('UnlockFeeCalculator', () => {
       });
 
       await time.increase(time.duration.days(30 * 26));
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee for +M26 is 0%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('100'));
     });
@@ -143,19 +143,19 @@ describe('UnlockFeeCalculator', () => {
       );
 
       await expect(
-        brainsStaking.connect(other).unstakeIlliquid(),
+        brainsStaking.connect(other).unstakeLocked(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await expect(
-        brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee(),
+        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await time.increase(time.duration.days(13 * 30)); // 13 months to get the possibility to withdraw
-      await expect(brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee()).to
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to
         .not.be.reverted;
     });
 
@@ -173,13 +173,13 @@ describe('UnlockFeeCalculator', () => {
       );
 
       await expect(
-        brainsStaking.connect(other).unstakeIlliquid(),
+        brainsStaking.connect(other).unstakeLocked(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await expect(
-        brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee(),
+        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
       ).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
@@ -189,7 +189,7 @@ describe('UnlockFeeCalculator', () => {
         method: 'evm_snapshot',
       });
 
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // first fee step for +M13 is 70%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('30'));
 
@@ -202,7 +202,7 @@ describe('UnlockFeeCalculator', () => {
       });
 
       await time.increase(time.duration.days(30));
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee step for +M14 is 65%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('35'));
 
@@ -212,7 +212,7 @@ describe('UnlockFeeCalculator', () => {
       });
 
       await time.increase(time.duration.days(60));
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee step for +M15 is 60%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('40'));
     });
@@ -234,7 +234,7 @@ describe('UnlockFeeCalculator', () => {
 
       await time.increase(time.duration.days(30 * 24));
 
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee for last step in M24 is 15%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('85'));
 
@@ -244,7 +244,7 @@ describe('UnlockFeeCalculator', () => {
       });
 
       await time.increase(time.duration.days(30 * 25));
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee for +M25 is 0%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('100'));
     });
@@ -289,7 +289,7 @@ describe('UnlockFeeCalculator', () => {
         );
         await time.increase(time.duration.days(30 * month));
 
-        await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+        await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
         // fee for last step in M24 is 15%
         expect(await brains.balanceOf(other.address)).to.be.eq(
           ethers.parseEther('100') - ethers.parseEther(String(feePercentage)),
@@ -309,7 +309,7 @@ describe('UnlockFeeCalculator', () => {
         LockType.PreSale,
       );
 
-      await brainsStaking.connect(other).unstakeIlliquidBeforeMaturedWithFee();
+      await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee for +M0 is 85%
       expect(await brains.balanceOf(other.address)).to.be.eq(ethers.parseEther('15'));
     });

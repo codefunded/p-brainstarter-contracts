@@ -8,23 +8,19 @@ const deployStakeNFTs: DeployFunction = async function ({
   const { log, save } = deployments;
   const [deployer] = await getUnnamedAccounts();
 
-  const IlliquidStakeFactory = await ethers.getContractFactory('IlliquidStake');
-  const illiquidStakeProxy = await upgrades.deployProxy(
-    IlliquidStakeFactory,
-    [deployer],
-    {
-      kind: 'uups',
-    },
+  const LockedStakeFactory = await ethers.getContractFactory('LockedStake');
+  const lockedStakeProxy = await upgrades.deployProxy(LockedStakeFactory, [deployer], {
+    kind: 'uups',
+  });
+  await lockedStakeProxy.waitForDeployment();
+  const lockedStake = await ethers.getContractAt(
+    'LockedStake',
+    await lockedStakeProxy.getAddress(),
   );
-  await illiquidStakeProxy.waitForDeployment();
-  const illiquidStake = await ethers.getContractAt(
-    'IlliquidStake',
-    await illiquidStakeProxy.getAddress(),
-  );
-  log(`IlliquidStake: ${await illiquidStake.getAddress()}`);
-  await save('IlliquidStake', {
-    abi: illiquidStake.interface.format(),
-    address: await illiquidStake.getAddress(),
+  log(`LockedStake: ${await lockedStake.getAddress()}`);
+  await save('LockedStake', {
+    abi: lockedStake.interface.format(),
+    address: await lockedStake.getAddress(),
   });
 
   const LiquidStakeFactory = await ethers.getContractFactory('LiquidStake');
