@@ -196,7 +196,7 @@ describe('BrainsStaking', function () {
       await brainsStaking.stakeFor(other.address, ethers.parseEther('50'), LockType.Public);
       const amountOfLiquidStakesAfterSecondStake = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakesAfterSecondStake).to.equal(2);
-      expect(await lockedStake.balanceOf(other.address)).to.equal(1);
+      expect(await lockedStake.balanceOf(other.address)).to.equal(0);
       expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('0'));
     });
   });
@@ -243,6 +243,45 @@ describe('BrainsStaking', function () {
       await expect(brainsStaking.withdrawTokens(await brains.getAddress(), collectedFees)).to.not.be.reverted;
 
       expect(await brainsStaking.getCollectedFees()).to.be.eq(0n);
+    });
+  });
+
+  describe('lock types stake', () => {
+    it('should not allow to stake with different lock types when stake is under liquid threshold', async () => {
+      const { brains, brainsStaking } = await loadFixture(deployBrains);
+
+      const [, other] = await ethers.getSigners();
+
+      await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
+
+      await brainsStaking.setLiquidStakeThreshold(ethers.parseEther('100'));
+
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('90'), LockType.PreSale);
+
+      await expect(
+        brainsStaking.stakeFor(other.address, ethers.parseEther('10'), LockType.Public),
+      ).to.be.revertedWithCustomError(brainsStaking, 'BrainsStaking__LockTypeMismatch');
+    });
+
+    it('should allow to stake up to liquid threshold with the same lock type and create an liquid stake', async () => {
+      const { brains, brainsStaking, lockedStake, liquidStake } = await loadFixture(deployBrains);
+
+      const [, other] = await ethers.getSigners();
+
+      await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
+
+      await brainsStaking.setLiquidStakeThreshold(ethers.parseEther('100'));
+
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('90'), LockType.PreSale);
+
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('10'), LockType.PreSale);
+
+      expect(await lockedStake.balanceOf(other.address)).to.be.eq(0);
+      expect(await liquidStake.balanceOf(other.address)).to.be.eq(1);
+      const liquidStakeId = await liquidStake.tokenOfOwnerByIndex(other.address, 0);
+      const liquidStakeInfo = await brainsStaking.getLiquidStakeInfo(liquidStakeId);
+      expect(liquidStakeInfo.amount).to.be.eq(ethers.parseEther('100'));
+      expect(liquidStakeInfo.lockType).to.be.eq(LockType.PreSale);
     });
   });
 });

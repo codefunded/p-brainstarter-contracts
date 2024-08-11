@@ -60,6 +60,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   error BrainsStaking__WithdrawalNotAllowedBeforeStakeMatured();
   error BrainsStaking__WithdrawalFeeGreaterThanStakedAmount();
   error BrainsStaking__NotEnoughFeesCollected();
+  error BrainsStaking__LockTypeMismatch();
 
   // keccak256(abi.encode(uint256(keccak256('brains.staking')) - 1)) & ~bytes32(uint256(0xff));
   bytes32 private constant MAIN_STORAGE_LOCATION = 0x0488b6ea87a9bf2c007dd47e5c684212f18293606ab6dc210d2f8a42ebef3e00;
@@ -108,6 +109,9 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
    * When the liquid stake threshold is set to a value greater than 0, the stake will be split into liquid and
    * illiquid (locked). The liquid stake will be minted in multiples of the liquid stake threshold and the remaining
    * amount will be staked as illiquid.
+   * If user locked some tokens in the past with a given lock type, they can only stake more tokens with the same lock type
+   * unless they stake up to the liquid stake threshold, in which case their stake will be converted to liquid stake and
+   * now they can stake more tokens with a different lock type. User can only have a one locked stake type at a time.
    * @param _staker address to stake for
    * @param _amount amount to stake
    * @param _lockType lock type of the stake (users will use Public which has no lock and no fee but initial stakes
@@ -139,6 +143,8 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     if (existingLockedStakeAmount == 0) {
       _mintOrSetLockedStakeData(_staker, remainingAmountToAddToStake, _lockType);
     } else {
+      require(s.lockedStakeIdToInfo[_staker].lockType == _lockType, BrainsStaking__LockTypeMismatch());
+
       uint256 newTotalAmount = existingLockedStakeAmount + remainingAmountToAddToStake;
       if (newTotalAmount >= s.liquidStakeThreshold) {
         howManyLiquidStakesToMint += newTotalAmount / s.liquidStakeThreshold;
@@ -146,7 +152,12 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
       } else {
         s.lockedStakeIdToInfo[_staker].amount = newTotalAmount;
       }
-      _mintOrSetLockedStakeData(_staker, s.lockedStakeIdToInfo[_staker].amount, _lockType);
+      if (s.lockedStakeIdToInfo[_staker].amount == 0) {
+        s.lockedStakes.burnById(s.lockedStakeIdToInfo[_staker].stakeId);
+        delete s.lockedStakeIdToInfo[_staker];
+      } else {
+        _mintOrSetLockedStakeData(_staker, s.lockedStakeIdToInfo[_staker].amount, _lockType);
+      }
     }
 
     _mintLiquidStakes(howManyLiquidStakesToMint, _staker, _lockType);
@@ -348,16 +359,17 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     require(s.liquidStakes.ownerOf(_stakeId) == _msgSender(), BrainsStaking__NotStakeOwner());
 
-    s.liquidStakes.burnById(_stakeId);
     uint256 amountToUnstake = s.liquidStakeIdToInfo[_stakeId].amount - unlockFee;
+
+    s.liquidStakes.burnById(_stakeId);
+    delete s.liquidStakeIdToInfo[_stakeId];
+
     s.stakingToken.safeTransfer(_msgSender(), amountToUnstake);
     s.collectedFees += unlockFee;
 
     if (s.liquidStakes.balanceOf(_msgSender()) == 0 && s.lockedStakes.balanceOf(_msgSender()) == 0) {
       s.stakers.remove(_msgSender());
     }
-
-    delete s.liquidStakeIdToInfo[_stakeId];
 
     emit LiquidUnstaked(_msgSender(), _stakeId, amountToUnstake);
   }

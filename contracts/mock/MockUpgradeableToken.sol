@@ -18,6 +18,13 @@ contract MockUpgradeableToken is
   OwnableUpgradeable,
   UUPSUpgradeable
 {
+  /// @custom:storage-location erc7201:brains.main
+  struct MainStorage {
+    uint256 contractDeploymentTimestamp;
+    uint256 yearlyMintLimit;
+    mapping(uint256 => uint256) mintedInYear;
+  }
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
