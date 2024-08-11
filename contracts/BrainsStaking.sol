@@ -11,22 +11,16 @@ import { LockedStake } from './LockedStake.sol';
 import { LiquidStake } from './LiquidStake.sol';
 import { UnlockFeeCalculator, LockType } from './UnlockFeeCalculator.sol';
 
+/**
+ * Contract for locking and staking $BRAINS tokens. Depending on the amount of tokens staked by the user,
+ * they may be eligible for liquid staking. Liquid staking allows the user trade their stake before maturity date
+ * because each liquid stake is represented by an ERC721 token that is transferable. However, if user
+ * stakes less than the liquid stake threshold, the stake will be locked and not transferable.
+ */
 contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   using SafeERC20 for IERC20;
   using EnumerableMap for EnumerableMap.AddressToUintMap;
   using EnumerableSet for EnumerableSet.AddressSet;
-
-  error BrainsStaking__NotStakeOwner();
-  error BrainsStaking__StakeNotMatured();
-  error BrainsStaking__WithdrawalNotAllowedBeforeStakeMatured();
-  error BrainsStaking__WithdrawalFeeGreaterThanStakedAmount();
-  error BrainsStaking__NotEnoughFeesCollected();
-
-  event LiquidStaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
-  event LockedStaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
-  event LiquidUnstaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
-  event LockedUnstaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
-  event LiquidStakeThresholdSet(uint256 threshold);
 
   enum StakeType {
     Locked,
@@ -55,91 +49,26 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     uint256 collectedFees;
   }
 
+  event LiquidStaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
+  event LockedStaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
+  event LiquidUnstaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
+  event LockedUnstaked(address indexed staker, uint256 indexed stakeId, uint256 amount);
+  event LiquidStakeThresholdSet(uint256 threshold);
+
+  error BrainsStaking__NotStakeOwner();
+  error BrainsStaking__StakeNotMatured();
+  error BrainsStaking__WithdrawalNotAllowedBeforeStakeMatured();
+  error BrainsStaking__WithdrawalFeeGreaterThanStakedAmount();
+  error BrainsStaking__NotEnoughFeesCollected();
+
   // keccak256(abi.encode(uint256(keccak256('brains.staking')) - 1)) & ~bytes32(uint256(0xff));
-  bytes32 private constant MAIN_STORAGE_LOCATION =
-    0x0488b6ea87a9bf2c007dd47e5c684212f18293606ab6dc210d2f8a42ebef3e00;
+  bytes32 private constant MAIN_STORAGE_LOCATION = 0x0488b6ea87a9bf2c007dd47e5c684212f18293606ab6dc210d2f8a42ebef3e00;
 
   function _getStorage() private pure returns (StakingStorage storage $) {
     assembly {
       $.slot := MAIN_STORAGE_LOCATION
     }
   }
-
-  // ***************** VIEW FUNCTIONS *****************
-
-  function getLockedStakeInfo(
-    address _user
-  ) external view returns (StakeInfo memory stakeInfo) {
-    stakeInfo = _getStorage().lockedStakeIdToInfo[_user];
-  }
-
-  function getLiquidStakeInfo(
-    uint256 _stakeId
-  ) external view returns (StakeInfo memory stakeInfo) {
-    stakeInfo = _getStorage().liquidStakeIdToInfo[_stakeId];
-  }
-
-  function getUserTotalStakedAmount(address _user) external view returns (uint256) {
-    StakingStorage storage s = _getStorage();
-    uint256 amountOfLiquidStakes = s.liquidStakes.balanceOf(_user);
-    uint256 totalAmount = s.lockedStakeIdToInfo[_user].amount;
-
-    for (uint256 i = 0; i < amountOfLiquidStakes; i++) {
-      uint256 tokenId = s.liquidStakes.tokenOfOwnerByIndex(_user, i);
-      totalAmount += s.liquidStakeIdToInfo[tokenId].amount;
-    }
-    return totalAmount;
-  }
-
-  function getLiquidStakeThreshold() external view returns (uint256) {
-    return _getStorage().liquidStakeThreshold;
-  }
-
-  function getLockedStakeBeforeMaturedUnstakeFee(
-    address _address
-  ) external view returns (uint256) {
-    StakingStorage storage s = _getStorage();
-    return
-      UnlockFeeCalculator.getUnlockFeeAmount(
-        s.lockedStakeIdToInfo[_address].lockType,
-        s.lockedStakeIdToInfo[_address].amount,
-        s.lockedStakeIdToInfo[_address].stakedAt
-      );
-  }
-
-  function getLiquidBeforeMaturedUnstakeFee(
-    uint256 _stakeId
-  ) external view returns (uint256) {
-    StakingStorage storage s = _getStorage();
-    return
-      UnlockFeeCalculator.getUnlockFeeAmount(
-        s.liquidStakeIdToInfo[_stakeId].lockType,
-        s.liquidStakeIdToInfo[_stakeId].amount,
-        s.liquidStakeIdToInfo[_stakeId].stakedAt
-      );
-  }
-
-  function getCollectedFees() external view returns (uint256) {
-    return _getStorage().collectedFees;
-  }
-
-  function getLockedStakeAddress() external view returns (address) {
-    return address(_getStorage().lockedStakes);
-  }
-
-  function getLiquidStakeAddress() external view returns (address) {
-    return address(_getStorage().liquidStakes);
-  }
-
-  function getStakersAmount() external view returns (uint256) {
-    return _getStorage().stakers.length();
-  }
-
-  function getStakerByIndex(uint256 _index) external view returns (address) {
-    return _getStorage().stakers.at(_index);
-  }
-
-  // ***************** PUBLIC FUNCTIONS *****************
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -160,6 +89,8 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     s.lockedStakes = _lockedStakes;
     s.liquidStakes = _liquidStakes;
   }
+
+  // ***************** EXTERNAL FUNCTIONS *****************
 
   /**
    * Sets the minimum amount of staked tokens required to be eligible for liquid staking.
@@ -191,11 +122,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     s.stakers.add(_staker);
 
     if (s.liquidStakeThreshold == 0) {
-      _mintOrSetLockedStakeData(
-        _staker,
-        s.lockedStakeIdToInfo[_staker].amount + _amount,
-        _lockType
-      );
+      _mintOrSetLockedStakeData(_staker, s.lockedStakeIdToInfo[_staker].amount + _amount, _lockType);
       return;
     }
 
@@ -219,11 +146,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
       } else {
         s.lockedStakeIdToInfo[_staker].amount = newTotalAmount;
       }
-      _mintOrSetLockedStakeData(
-        _staker,
-        s.lockedStakeIdToInfo[_staker].amount,
-        _lockType
-      );
+      _mintOrSetLockedStakeData(_staker, s.lockedStakeIdToInfo[_staker].amount, _lockType);
     }
 
     _mintLiquidStakes(howManyLiquidStakesToMint, _staker, _lockType);
@@ -300,13 +223,91 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     s.stakingToken.safeTransfer(_msgSender(), _amount);
   }
 
+  function getLockedStakeInfo(address _user) external view returns (StakeInfo memory stakeInfo) {
+    stakeInfo = _getStorage().lockedStakeIdToInfo[_user];
+  }
+
+  function getLiquidStakeInfo(uint256 _stakeId) external view returns (StakeInfo memory stakeInfo) {
+    stakeInfo = _getStorage().liquidStakeIdToInfo[_stakeId];
+  }
+
+  /**
+   * Gets the total amount of tokens staked by the user. This includes both locked and liquid stakes.
+   * @param _user address of the user
+   */
+  function getUserTotalStakedAmount(address _user) external view returns (uint256) {
+    StakingStorage storage s = _getStorage();
+    uint256 amountOfLiquidStakes = s.liquidStakes.balanceOf(_user);
+    uint256 totalAmount = s.lockedStakeIdToInfo[_user].amount;
+
+    for (uint256 i = 0; i < amountOfLiquidStakes; i++) {
+      uint256 tokenId = s.liquidStakes.tokenOfOwnerByIndex(_user, i);
+      totalAmount += s.liquidStakeIdToInfo[tokenId].amount;
+    }
+    return totalAmount;
+  }
+
+  function getLiquidStakeThreshold() external view returns (uint256) {
+    return _getStorage().liquidStakeThreshold;
+  }
+
+  /**
+   * Calculates the amount of fee a user would have to pay if they unstaked their locked stake
+   * before it has matured.
+   * @param _address address of the user
+   */
+  function getLockedStakeBeforeMaturedUnstakeFee(address _address) external view returns (uint256) {
+    StakingStorage storage s = _getStorage();
+    return
+      UnlockFeeCalculator.getUnlockFeeAmount(
+        s.lockedStakeIdToInfo[_address].lockType,
+        s.lockedStakeIdToInfo[_address].amount,
+        s.lockedStakeIdToInfo[_address].stakedAt
+      );
+  }
+
+  /**
+   * Calculates the amount of fee a user would have to pay for unstaking a given liquid stake
+   * before it has matured.
+   * @param _stakeId id of the liquid stake
+   */
+  function getLiquidStakeBeforeMaturedUnstakeFee(uint256 _stakeId) external view returns (uint256) {
+    StakingStorage storage s = _getStorage();
+    return
+      UnlockFeeCalculator.getUnlockFeeAmount(
+        s.liquidStakeIdToInfo[_stakeId].lockType,
+        s.liquidStakeIdToInfo[_stakeId].amount,
+        s.liquidStakeIdToInfo[_stakeId].stakedAt
+      );
+  }
+
+  /**
+   * Gets the total amount of fees collected by the contract by slashing users who unstaked their stakes
+   * before they have matured.
+   */
+  function getCollectedFees() external view returns (uint256) {
+    return _getStorage().collectedFees;
+  }
+
+  function getLockedStakeAddress() external view returns (address) {
+    return address(_getStorage().lockedStakes);
+  }
+
+  function getLiquidStakeAddress() external view returns (address) {
+    return address(_getStorage().liquidStakes);
+  }
+
+  function getStakersAmount() external view returns (uint256) {
+    return _getStorage().stakers.length();
+  }
+
+  function getStakerByIndex(uint256 _index) external view returns (address) {
+    return _getStorage().stakers.at(_index);
+  }
+
   // ***************** INTERNAL FUNCTIONS *****************
 
-  function _mintOrSetLockedStakeData(
-    address _staker,
-    uint256 _stakeAmount,
-    LockType _lockType
-  ) internal {
+  function _mintOrSetLockedStakeData(address _staker, uint256 _stakeAmount, LockType _lockType) internal {
     StakingStorage storage s = _getStorage();
     uint256 lockedStakeId = s.lockedStakes.balanceOf(_staker) > 0
       ? s.lockedStakes.getTokenIdFromAddress(_staker)
@@ -321,11 +322,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     emit LockedStaked(_staker, lockedStakeId, _stakeAmount);
   }
 
-  function _mintLiquidStakes(
-    uint256 _howManyLiquidStakesToMint,
-    address _staker,
-    LockType _lockType
-  ) internal {
+  function _mintLiquidStakes(uint256 _howManyLiquidStakesToMint, address _staker, LockType _lockType) internal {
     StakingStorage storage s = _getStorage();
     uint256[] memory liquidStakeIds = new uint256[](_howManyLiquidStakesToMint);
     for (uint256 i = 0; i < _howManyLiquidStakesToMint; i++) {
@@ -349,20 +346,14 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
       s.liquidStakeIdToInfo[_stakeId].stakedAt
     );
 
-    require(
-      s.liquidStakes.ownerOf(_stakeId) == _msgSender(),
-      BrainsStaking__NotStakeOwner()
-    );
+    require(s.liquidStakes.ownerOf(_stakeId) == _msgSender(), BrainsStaking__NotStakeOwner());
 
     s.liquidStakes.burnById(_stakeId);
     uint256 amountToUnstake = s.liquidStakeIdToInfo[_stakeId].amount - unlockFee;
     s.stakingToken.safeTransfer(_msgSender(), amountToUnstake);
     s.collectedFees += unlockFee;
 
-    if (
-      s.liquidStakes.balanceOf(_msgSender()) == 0 &&
-      s.lockedStakes.balanceOf(_msgSender()) == 0
-    ) {
+    if (s.liquidStakes.balanceOf(_msgSender()) == 0 && s.lockedStakes.balanceOf(_msgSender()) == 0) {
       s.stakers.remove(_msgSender());
     }
 
@@ -386,17 +377,12 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     uint256 amountToUnstake = s.lockedStakeIdToInfo[_staker].amount - unlockFee;
     s.stakingToken.safeTransfer(_msgSender(), amountToUnstake);
 
-    if (
-      s.liquidStakes.balanceOf(_msgSender()) == 0 &&
-      s.lockedStakes.balanceOf(_msgSender()) == 0
-    ) {
+    if (s.liquidStakes.balanceOf(_msgSender()) == 0 && s.lockedStakes.balanceOf(_msgSender()) == 0) {
       s.stakers.remove(_msgSender());
     }
 
     emit LockedUnstaked(_msgSender(), lockedTokenId, amountToUnstake);
   }
 
-  function _authorizeUpgrade(
-    address newImplementation
-  ) internal virtual override onlyOwner {}
+  function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner {}
 }

@@ -34,8 +34,7 @@ library UnlockFeeCalculator {
     uint256 stakedAmount,
     uint256 stakedAt
   ) internal view returns (uint256) {
-    uint256 monthsDifference = DateTimeLib.diffDays(stakedAt, block.timestamp) /
-      DAYS_IN_MONTH;
+    uint256 monthsDifference = DateTimeLib.diffDays(stakedAt, block.timestamp) / DAYS_IN_MONTH;
     if (lockType == LockType.Public) {
       return 0; // no unlock fee
     }
@@ -113,9 +112,7 @@ library UnlockFeeCalculator {
         return 0;
       }
 
-      return
-        (stakedAmount *
-          STRATEGIC_OR_PRIVATE_SALE_PERCENTAGE_PENALTY_TABLE[monthsDifference]) / 100;
+      return (stakedAmount * STRATEGIC_OR_PRIVATE_SALE_PERCENTAGE_PENALTY_TABLE[monthsDifference]) / 100;
     }
 
     if (lockType == LockType.Seed) {

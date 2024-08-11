@@ -1,10 +1,7 @@
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, upgrades } from 'hardhat';
 
-const deployStakeNFTs: DeployFunction = async function ({
-  getUnnamedAccounts,
-  deployments,
-}) {
+const deployStakeNFTs: DeployFunction = async function ({ getUnnamedAccounts, deployments }) {
   const { log, save } = deployments;
   const [deployer] = await getUnnamedAccounts();
 
@@ -13,10 +10,7 @@ const deployStakeNFTs: DeployFunction = async function ({
     kind: 'uups',
   });
   await lockedStakeProxy.waitForDeployment();
-  const lockedStake = await ethers.getContractAt(
-    'LockedStake',
-    await lockedStakeProxy.getAddress(),
-  );
+  const lockedStake = await ethers.getContractAt('LockedStake', await lockedStakeProxy.getAddress());
   log(`LockedStake: ${await lockedStake.getAddress()}`);
   await save('LockedStake', {
     abi: lockedStake.interface.format(),
@@ -28,10 +22,7 @@ const deployStakeNFTs: DeployFunction = async function ({
     kind: 'uups',
   });
   await liquidStakeProxy.waitForDeployment();
-  const liquidStake = await ethers.getContractAt(
-    'LiquidStake',
-    await liquidStakeProxy.getAddress(),
-  );
+  const liquidStake = await ethers.getContractAt('LiquidStake', await liquidStakeProxy.getAddress());
   log(`LiquidStake: ${await liquidStake.getAddress()}`);
   await save('LiquidStake', {
     abi: liquidStake.interface.format(),

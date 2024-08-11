@@ -17,12 +17,7 @@ import { BrainsStaking } from './BrainsStaking.sol';
 contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   error BrainsReceiptLocker__InvalidToken();
 
-  event TokensExchangedAndStaked(
-    address indexed user,
-    uint256 amount,
-    address token,
-    LockType lockType
-  );
+  event TokensExchangedAndStaked(address indexed user, uint256 amount, address token, LockType lockType);
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -39,8 +34,7 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
   }
 
   // keccak256(abi.encode(uint256(keccak256('brains.receipt-locker')) - 1)) & ~bytes32(uint256(0xff));
-  bytes32 private constant MAIN_STORAGE_LOCATION =
-    0xfafe5bb59d255e97b74bfe8f1417e10c824eb8832226911847427da8b1cbd400;
+  bytes32 private constant MAIN_STORAGE_LOCATION = 0xfafe5bb59d255e97b74bfe8f1417e10c824eb8832226911847427da8b1cbd400;
 
   function _getStorage() private pure returns (StakingStorage storage $) {
     assembly {
@@ -67,6 +61,8 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
     s.seedToken = _seedToken;
   }
 
+  // ***************** PUBLIC FUNCTIONS *****************
+
   /**
    * Exchange the receipt token to $BRAINS token and stake it right away.
    * @param _amount The amount of tokens to exchange and stake
@@ -75,9 +71,7 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
   function exchangeTokensAndStake(uint256 _amount, IERC20 _token) public {
     StakingStorage storage s = _getStorage();
     require(
-      _token == s.preSaleToken ||
-        _token == s.strategicPrivateSaleToken ||
-        _token == s.seedToken,
+      _token == s.preSaleToken || _token == s.strategicPrivateSaleToken || _token == s.seedToken,
       BrainsReceiptLocker__InvalidToken()
     );
     SafeERC20.safeTransferFrom(_token, _msgSender(), address(this), _amount);
@@ -85,8 +79,8 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
     LockType lockType = _token == s.preSaleToken
       ? LockType.PreSale
       : _token == s.strategicPrivateSaleToken
-      ? LockType.StrategicOrPrivate
-      : LockType.Seed;
+        ? LockType.StrategicOrPrivate
+        : LockType.Seed;
 
     s.underlyingToken.approve(address(s.staking), _amount);
     s.staking.stakeFor(_msgSender(), _amount, lockType);
@@ -94,7 +88,7 @@ contract BrainsReceiptLocker is Initializable, OwnableUpgradeable, UUPSUpgradeab
     emit TokensExchangedAndStaked(_msgSender(), _amount, address(_token), lockType);
   }
 
-  function _authorizeUpgrade(
-    address newImplementation
-  ) internal virtual override onlyOwner {}
+  // ***************** INTERNAL FUNCTIONS *****************
+
+  function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner {}
 }

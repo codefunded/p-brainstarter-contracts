@@ -2,10 +2,7 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, upgrades } from 'hardhat';
 import { deploymentConfig } from '../deploymentConfig';
 
-const deployDopamine: DeployFunction = async function ({
-  getUnnamedAccounts,
-  deployments,
-}) {
+const deployDopamine: DeployFunction = async function ({ getUnnamedAccounts, deployments }) {
   const { log } = deployments;
   const [deployer] = await getUnnamedAccounts();
 

@@ -23,10 +23,7 @@ export const calculateAirdrop = async ({
   const amountOfStakers = await brainsStaking.getStakersAmount({
     blockTag: blockTimestamp,
   });
-  const stakers = new Map<
-    string,
-    { dopamine: bigint; stakedAmount: bigint; airdropAmount: bigint }
-  >();
+  const stakers = new Map<string, { dopamine: bigint; stakedAmount: bigint; airdropAmount: bigint }>();
   for (let i = 0; i < amountOfStakers; i++) {
     const staker = await brainsStaking.getStakerByIndex(i, {
       blockTag: blockTimestamp,
@@ -58,8 +55,7 @@ export const calculateAirdrop = async ({
       acc +
       ethers.parseUnits(
         (
-          Number(ethers.formatUnits(stakedAmount, stakingTokenDecimals)) *
-          Number(ethers.formatEther(dopamine))
+          Number(ethers.formatUnits(stakedAmount, stakingTokenDecimals)) * Number(ethers.formatEther(dopamine))
         ).toString(),
         stakingTokenDecimals,
       ),

@@ -24,8 +24,8 @@ contract LiquidStake is
   using EnumerableMap for EnumerableMap.UintToUintMap;
 
   bytes32 public constant MANAGER_ROLE = keccak256('MANAGER_ROLE');
-  uint256 private _nextTokenId;
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
+  uint256 private _nextTokenId;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -42,6 +42,8 @@ contract LiquidStake is
     _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
   }
 
+  // ***************** PUBLIC FUNCTIONS *****************
+
   function safeMint(address to) public onlyRole(MANAGER_ROLE) returns (uint256) {
     uint256 tokenId = _nextTokenId++;
     _safeMint(to, tokenId);
@@ -52,9 +54,16 @@ contract LiquidStake is
     _burn(tokenId);
   }
 
-  function _authorizeUpgrade(
-    address newImplementation
-  ) internal override onlyRole(UPGRADER_ROLE) {}
+  /// @dev This override is required by Solidity.
+  function supportsInterface(
+    bytes4 interfaceId
+  ) public view override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable) returns (bool) {
+    return super.supportsInterface(interfaceId);
+  }
+
+  // ***************** INTERNAL FUNCTIONS *****************
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   // The following functions are overrides required by Solidity.
 
@@ -71,16 +80,5 @@ contract LiquidStake is
     uint128 value
   ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) {
     super._increaseBalance(account, value);
-  }
-
-  function supportsInterface(
-    bytes4 interfaceId
-  )
-    public
-    view
-    override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable)
-    returns (bool)
-  {
-    return super.supportsInterface(interfaceId);
   }
 }

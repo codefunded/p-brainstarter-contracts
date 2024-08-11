@@ -13,27 +13,18 @@ describe('UnlockFeeCalculator', () => {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.Seed,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.Seed);
 
-      await expect(
-        brainsStaking.connect(other).unstakeLocked(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLocked()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
-      await expect(
-        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await time.increase(time.duration.days(13 * 30)); // 13 months to get the possibility to withdraw
-      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to
-        .not.be.reverted;
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to.not.be.reverted;
     });
 
     it('should allow to withdraw after 12 months but with a fee', async () => {
@@ -43,21 +34,13 @@ describe('UnlockFeeCalculator', () => {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.Seed,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.Seed);
 
-      await expect(
-        brainsStaking.connect(other).unstakeLocked(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLocked()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
-      await expect(
-        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
@@ -101,11 +84,7 @@ describe('UnlockFeeCalculator', () => {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.Seed,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.Seed);
       const beforeUnstakeStateSnapshotId = await hre.network.provider.request({
         method: 'evm_snapshot',
       });
@@ -136,27 +115,18 @@ describe('UnlockFeeCalculator', () => {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.StrategicOrPrivate,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.StrategicOrPrivate);
 
-      await expect(
-        brainsStaking.connect(other).unstakeLocked(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLocked()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
-      await expect(
-        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
       await time.increase(time.duration.days(13 * 30)); // 13 months to get the possibility to withdraw
-      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to
-        .not.be.reverted;
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to.not.be.reverted;
     });
 
     it('should allow to withdraw after 12 months but with a fee', async () => {
@@ -166,21 +136,13 @@ describe('UnlockFeeCalculator', () => {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.StrategicOrPrivate,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.StrategicOrPrivate);
 
-      await expect(
-        brainsStaking.connect(other).unstakeLocked(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLocked()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
-      await expect(
-        brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee(),
-      ).to.be.revertedWithCustomError(
+      await expect(brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee()).to.be.revertedWithCustomError(
         brainsStaking,
         'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
       );
@@ -223,11 +185,7 @@ describe('UnlockFeeCalculator', () => {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.StrategicOrPrivate,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.StrategicOrPrivate);
       const beforeUnstakeStateSnapshotId = await hre.network.provider.request({
         method: 'evm_snapshot',
       });
@@ -282,11 +240,7 @@ describe('UnlockFeeCalculator', () => {
 
         await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-        await brainsStaking.stakeFor(
-          other.address,
-          ethers.parseEther('100'),
-          LockType.PreSale,
-        );
+        await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.PreSale);
         await time.increase(time.duration.days(30 * month));
 
         await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
@@ -303,11 +257,7 @@ describe('UnlockFeeCalculator', () => {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.PreSale,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.PreSale);
 
       await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       // fee for +M0 is 85%

@@ -40,9 +40,7 @@ contract LockedStake is
     _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
   }
 
-  function getTokenIdFromAddress(address _owner) public pure returns (uint256) {
-    return uint256(uint160(_owner));
-  }
+  // ***************** PUBLIC FUNCTIONS *****************
 
   function safeMint(address to) public onlyRole(MANAGER_ROLE) returns (uint256) {
     uint256 tokenId = getTokenIdFromAddress(to);
@@ -54,9 +52,20 @@ contract LockedStake is
     _burn(tokenId);
   }
 
-  function _authorizeUpgrade(
-    address newImplementation
-  ) internal override onlyRole(UPGRADER_ROLE) {}
+  /// @dev This override is required by Solidity.
+  function supportsInterface(
+    bytes4 interfaceId
+  ) public view override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable) returns (bool) {
+    return super.supportsInterface(interfaceId);
+  }
+
+  function getTokenIdFromAddress(address _owner) public pure returns (uint256) {
+    return uint256(uint160(_owner));
+  }
+
+  // ***************** INTERNAL FUNCTIONS *****************
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   // The following functions are overrides required by Solidity.
 
@@ -74,16 +83,5 @@ contract LockedStake is
     uint128 value
   ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) {
     super._increaseBalance(account, value);
-  }
-
-  function supportsInterface(
-    bytes4 interfaceId
-  )
-    public
-    view
-    override(ERC721Upgradeable, ERC721EnumerableUpgradeable, AccessControlUpgradeable)
-    returns (bool)
-  {
-    return super.supportsInterface(interfaceId);
   }
 }

@@ -13,11 +13,7 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.Public);
       const stakeId = await lockedStake.getTokenIdFromAddress(other.address);
 
       expect(await lockedStake.ownerOf(stakeId)).to.equal(other.address);
@@ -30,11 +26,7 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.Public);
       const stakeId = await lockedStake.getTokenIdFromAddress(other.address);
 
       expect(await lockedStake.ownerOf(stakeId)).to.equal(other.address);
@@ -44,11 +36,7 @@ describe('BrainsStaking', function () {
       expect(await lockedStake.balanceOf(other.address)).to.equal(0);
     });
 
-    for (const lockType of [
-      LockType.StrategicOrPrivate,
-      LockType.Seed,
-      LockType.Founder,
-    ]) {
+    for (const lockType of [LockType.StrategicOrPrivate, LockType.Seed, LockType.Founder]) {
       it(`should not allow to unstake tokens staked in locked type stake when invested in ${LockType[lockType]} round`, async () => {
         const { brains, brainsStaking, lockedStake } = await loadFixture(deployBrains);
 
@@ -61,9 +49,7 @@ describe('BrainsStaking', function () {
 
         expect(await lockedStake.ownerOf(stakeId)).to.equal(other.address);
 
-        await expect(
-          brainsStaking.connect(other).unstakeLocked(),
-        ).to.be.revertedWithCustomError(
+        await expect(brainsStaking.connect(other).unstakeLocked()).to.be.revertedWithCustomError(
           brainsStaking,
           'UnlockFeeCalculator__CannotWithdrawWhenStakingIsStillObligatory',
         );
@@ -76,18 +62,15 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.PreSale,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.PreSale);
       const stakeId = await lockedStake.getTokenIdFromAddress(other.address);
 
       expect(await lockedStake.ownerOf(stakeId)).to.equal(other.address);
 
-      await expect(
-        brainsStaking.connect(other).unstakeLocked(),
-      ).to.be.revertedWithCustomError(brainsStaking, 'BrainsStaking__StakeNotMatured');
+      await expect(brainsStaking.connect(other).unstakeLocked()).to.be.revertedWithCustomError(
+        brainsStaking,
+        'BrainsStaking__StakeNotMatured',
+      );
 
       await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
 
@@ -107,18 +90,12 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.Public);
       const amountOfLiquidStakes = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakes).to.equal(1);
       const stakeId = await liquidStake.tokenOfOwnerByIndex(other.address, 0);
 
-      await liquidStake
-        .connect(other)
-        .transferFrom(other.address, unlocker.address, stakeId);
+      await liquidStake.connect(other).transferFrom(other.address, unlocker.address, stakeId);
 
       expect(await liquidStake.ownerOf(stakeId)).to.equal(unlocker.address);
 
@@ -129,8 +106,7 @@ describe('BrainsStaking', function () {
     });
 
     it('if staked more than threshold, should also create locked stake with the remainder', async () => {
-      const { brains, brainsStaking, liquidStake, lockedStake } =
-        await loadFixture(deployBrains);
+      const { brains, brainsStaking, liquidStake, lockedStake } = await loadFixture(deployBrains);
 
       const [, other, unlocker] = await ethers.getSigners();
 
@@ -138,18 +114,12 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('150'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('150'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('150'), LockType.Public);
       const amountOfLiquidStakes = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakes).to.equal(1);
       const stakeId = await liquidStake.tokenOfOwnerByIndex(other.address, 0);
 
-      await liquidStake
-        .connect(other)
-        .transferFrom(other.address, unlocker.address, stakeId);
+      await liquidStake.connect(other).transferFrom(other.address, unlocker.address, stakeId);
 
       expect(await liquidStake.ownerOf(stakeId)).to.equal(unlocker.address);
 
@@ -159,9 +129,7 @@ describe('BrainsStaking', function () {
       expect(await brains.balanceOf(unlocker.address)).to.be.eq(ethers.parseEther('100'));
 
       expect(await lockedStake.balanceOf(other.address)).to.equal(1);
-      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(
-        ethers.parseEther('50'),
-      );
+      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('50'));
     });
 
     it('if staked less than threshold and adds a new stake still below threshold it should update the locked stake', async () => {
@@ -172,36 +140,23 @@ describe('BrainsStaking', function () {
       await brainsStaking.setLiquidStakeThreshold(ethers.parseEther('100'));
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('50'));
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('50'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('50'), LockType.Public);
 
       const amountOfLiquidStakes = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakes).to.equal(0);
 
       expect(await liquidStake.balanceOf(other.address)).to.equal(0);
-      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(
-        ethers.parseEther('50'),
-      );
+      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('50'));
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('30'));
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('30'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('30'), LockType.Public);
 
       expect(await liquidStake.balanceOf(other.address)).to.equal(0);
-      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(
-        ethers.parseEther('80'),
-      );
+      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('80'));
     });
 
     it('when user already has existing locked stake and now stakes more than threshold, should create new liquid stakes and should keep the locked stake if there is remainder', async () => {
-      const { brains, brainsStaking, liquidStake, lockedStake } =
-        await loadFixture(deployBrains);
+      const { brains, brainsStaking, liquidStake, lockedStake } = await loadFixture(deployBrains);
 
       const [, other] = await ethers.getSigners();
 
@@ -209,35 +164,20 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('150'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('150'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('150'), LockType.Public);
       const amountOfLiquidStakes = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakes).to.equal(1);
       expect(await lockedStake.balanceOf(other.address)).to.equal(1);
-      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(
-        ethers.parseEther('50'),
-      );
+      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('50'));
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('60'));
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('60'),
-        LockType.Public,
-      );
-      const amountOfLiquidStakesAfterSecondStake = await liquidStake.balanceOf(
-        other.address,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('60'), LockType.Public);
+      const amountOfLiquidStakesAfterSecondStake = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakesAfterSecondStake).to.equal(2);
-      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(
-        ethers.parseEther('10'),
-      );
+      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('10'));
     });
     it('when user already has existing locked stake and now stakes more than threshold, should create new liquid stakes and burn the locked stake if there is no remainder', async () => {
-      const { brains, brainsStaking, liquidStake, lockedStake } =
-        await loadFixture(deployBrains);
+      const { brains, brainsStaking, liquidStake, lockedStake } = await loadFixture(deployBrains);
 
       const [, other] = await ethers.getSigners();
 
@@ -245,33 +185,19 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('150'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('150'),
-        LockType.Public,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('150'), LockType.Public);
       const amountOfLiquidStakes = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakes).to.equal(1);
 
       expect(await lockedStake.balanceOf(other.address)).to.equal(1);
-      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(
-        ethers.parseEther('50'),
-      );
+      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('50'));
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('50'));
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('50'),
-        LockType.Public,
-      );
-      const amountOfLiquidStakesAfterSecondStake = await liquidStake.balanceOf(
-        other.address,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('50'), LockType.Public);
+      const amountOfLiquidStakesAfterSecondStake = await liquidStake.balanceOf(other.address);
       expect(amountOfLiquidStakesAfterSecondStake).to.equal(2);
       expect(await lockedStake.balanceOf(other.address)).to.equal(1);
-      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(
-        ethers.parseEther('0'),
-      );
+      expect((await brainsStaking.getLockedStakeInfo(other.address)).amount).to.be.eq(ethers.parseEther('0'));
     });
   });
 
@@ -283,16 +209,8 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('200'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.PreSale,
-      );
-      await brainsStaking.stakeFor(
-        other2.address,
-        ethers.parseEther('100'),
-        LockType.PreSale,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.PreSale);
+      await brainsStaking.stakeFor(other2.address, ethers.parseEther('100'), LockType.PreSale);
 
       await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
       await brainsStaking.connect(other2).unstakeLockedBeforeMaturedWithFee();
@@ -308,11 +226,7 @@ describe('BrainsStaking', function () {
 
       await brains.approve(brainsStaking.getAddress(), ethers.parseEther('100'));
 
-      await brainsStaking.stakeFor(
-        other.address,
-        ethers.parseEther('100'),
-        LockType.PreSale,
-      );
+      await brainsStaking.stakeFor(other.address, ethers.parseEther('100'), LockType.PreSale);
 
       await brainsStaking.connect(other).unstakeLockedBeforeMaturedWithFee();
 
@@ -320,19 +234,13 @@ describe('BrainsStaking', function () {
 
       await expect(
         brainsStaking.withdrawTokens(await brains.getAddress(), collectedFees * 2n),
-      ).to.be.revertedWithCustomError(
-        brainsStaking,
-        'BrainsStaking__NotEnoughFeesCollected',
-      );
+      ).to.be.revertedWithCustomError(brainsStaking, 'BrainsStaking__NotEnoughFeesCollected');
 
       await expect(
-        brainsStaking
-          .connect(other)
-          .withdrawTokens(await brains.getAddress(), collectedFees),
+        brainsStaking.connect(other).withdrawTokens(await brains.getAddress(), collectedFees),
       ).to.be.revertedWithCustomError(brainsStaking, 'OwnableUnauthorizedAccount');
 
-      await expect(brainsStaking.withdrawTokens(await brains.getAddress(), collectedFees))
-        .to.not.be.reverted;
+      await expect(brainsStaking.withdrawTokens(await brains.getAddress(), collectedFees)).to.not.be.reverted;
 
       expect(await brainsStaking.getCollectedFees()).to.be.eq(0n);
     });

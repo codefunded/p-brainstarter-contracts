@@ -2,34 +2,20 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, upgrades } from 'hardhat';
 import { deploymentConfig } from '../deploymentConfig';
 
-const deployStakeNFTs: DeployFunction = async function ({
-  getUnnamedAccounts,
-  deployments,
-}) {
+const deployStakeNFTs: DeployFunction = async function ({ getUnnamedAccounts, deployments }) {
   const { log, get } = deployments;
   const [deployer] = await getUnnamedAccounts();
 
   const brains = await get('Brains');
   const liquidStakeDeployment = await get('LiquidStake');
-  const liquidStake = await ethers.getContractAt(
-    'LiquidStake',
-    liquidStakeDeployment.address,
-  );
+  const liquidStake = await ethers.getContractAt('LiquidStake', liquidStakeDeployment.address);
   const lockedStakeDeployment = await get('LockedStake');
-  const lockedStake = await ethers.getContractAt(
-    'LockedStake',
-    lockedStakeDeployment.address,
-  );
+  const lockedStake = await ethers.getContractAt('LockedStake', lockedStakeDeployment.address);
 
   const BrainsStakingFactory = await ethers.getContractFactory('BrainsStaking');
   const brainsStakingProxy = await upgrades.deployProxy(
     BrainsStakingFactory,
-    [
-      deployer,
-      brains.address,
-      await lockedStake.getAddress(),
-      await liquidStake.getAddress(),
-    ],
+    [deployer, brains.address, await lockedStake.getAddress(), await liquidStake.getAddress()],
     {
       kind: 'uups',
     },
@@ -37,15 +23,9 @@ const deployStakeNFTs: DeployFunction = async function ({
   await brainsStakingProxy.waitForDeployment();
   log(`BrainsStaking: ${await brainsStakingProxy.getAddress()}`);
 
-  await lockedStake.grantRole(
-    await lockedStake.MANAGER_ROLE(),
-    await brainsStakingProxy.getAddress(),
-  );
+  await lockedStake.grantRole(await lockedStake.MANAGER_ROLE(), await brainsStakingProxy.getAddress());
 
-  await liquidStake.grantRole(
-    await liquidStake.MANAGER_ROLE(),
-    await brainsStakingProxy.getAddress(),
-  );
+  await liquidStake.grantRole(await liquidStake.MANAGER_ROLE(), await brainsStakingProxy.getAddress());
 
   const ReceiptLocker = await ethers.getContractFactory('BrainsReceiptLocker');
   const receiptLocker = await upgrades.deployProxy(

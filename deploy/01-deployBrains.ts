@@ -2,10 +2,7 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, upgrades } from 'hardhat';
 import { deploymentConfig } from '../deploymentConfig';
 
-const deployBrains: DeployFunction = async function ({
-  getUnnamedAccounts,
-  deployments,
-}) {
+const deployBrains: DeployFunction = async function ({ getUnnamedAccounts, deployments }) {
   const { log, save } = deployments;
   const [deployer] = await getUnnamedAccounts();
 
@@ -13,11 +10,7 @@ const deployBrains: DeployFunction = async function ({
 
   const brains = await upgrades.deployProxy(
     BrainsFactory,
-    [
-      deployer,
-      deploymentConfig.Brains.args.initialSupply,
-      deploymentConfig.Brains.args.yearlyMintLimit,
-    ],
+    [deployer, deploymentConfig.Brains.args.initialSupply, deploymentConfig.Brains.args.yearlyMintLimit],
     {
       kind: 'uups',
     },
