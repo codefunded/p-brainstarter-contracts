@@ -153,8 +153,7 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         s.lockedStakeIdToInfo[_staker].amount = newTotalAmount;
       }
       if (s.lockedStakeIdToInfo[_staker].amount == 0) {
-        s.lockedStakes.burnById(s.lockedStakeIdToInfo[_staker].stakeId);
-        delete s.lockedStakeIdToInfo[_staker];
+        _unstakeLocked(_staker);
       } else {
         _mintOrSetLockedStakeData(_staker, s.lockedStakeIdToInfo[_staker].amount, _lockType);
       }
@@ -320,6 +319,12 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
   function _mintOrSetLockedStakeData(address _staker, uint256 _stakeAmount, LockType _lockType) internal {
     StakingStorage storage s = _getStorage();
+    // check if user already has some locked stake
+    if (s.lockedStakeIdToInfo[_staker].amount > 0) {
+      // if so, check if the lock type is the same. This prevents user from bypassing the commission fee
+      require(s.lockedStakeIdToInfo[_staker].lockType == _lockType, BrainsStaking__LockTypeMismatch());
+    }
+
     uint256 lockedStakeId = s.lockedStakes.balanceOf(_staker) > 0
       ? s.lockedStakes.getTokenIdFromAddress(_staker)
       : s.lockedStakes.safeMint(_staker);
@@ -392,6 +397,8 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     if (s.liquidStakes.balanceOf(_msgSender()) == 0 && s.lockedStakes.balanceOf(_msgSender()) == 0) {
       s.stakers.remove(_msgSender());
     }
+
+    delete s.lockedStakeIdToInfo[_staker];
 
     emit LockedUnstaked(_msgSender(), lockedTokenId, amountToUnstake);
   }
