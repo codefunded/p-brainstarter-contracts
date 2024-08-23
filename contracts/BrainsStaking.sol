@@ -2,7 +2,6 @@
 pragma solidity ^0.8.26;
 
 import { EnumerableMap } from '@openzeppelin/contracts/utils/structs/EnumerableMap.sol';
-import { EnumerableSet } from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { OwnableUpgradeable } from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -20,7 +19,6 @@ import { UnlockFeeCalculator, LockType } from './UnlockFeeCalculator.sol';
 contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
   using SafeERC20 for IERC20;
   using EnumerableMap for EnumerableMap.AddressToUintMap;
-  using EnumerableSet for EnumerableSet.AddressSet;
 
   enum StakeType {
     Locked,
@@ -45,7 +43,6 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     /// @dev One locked stake per user with a cap of liquidStakeThreshold
     mapping(address => StakeInfo) lockedStakeIdToInfo;
     uint256 liquidStakeThreshold;
-    EnumerableSet.AddressSet stakers;
     uint256 collectedFees;
   }
 
@@ -122,8 +119,6 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     StakingStorage storage s = _getStorage();
 
     s.stakingToken.safeTransferFrom(_msgSender(), address(this), _amount);
-
-    s.stakers.add(_staker);
 
     if (s.liquidStakeThreshold == 0) {
       _mintOrSetLockedStakeData(_staker, s.lockedStakeIdToInfo[_staker].amount + _amount, _lockType);
@@ -307,14 +302,6 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     return address(_getStorage().liquidStakes);
   }
 
-  function getStakersAmount() external view returns (uint256) {
-    return _getStorage().stakers.length();
-  }
-
-  function getStakerByIndex(uint256 _index) external view returns (address) {
-    return _getStorage().stakers.at(_index);
-  }
-
   // ***************** INTERNAL FUNCTIONS *****************
 
   function _mintOrSetLockedStakeData(address _staker, uint256 _stakeAmount, LockType _lockType) internal {
@@ -372,10 +359,6 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     s.stakingToken.safeTransfer(_msgSender(), amountToUnstake);
     s.collectedFees += unlockFee;
 
-    if (s.liquidStakes.balanceOf(_msgSender()) == 0 && s.lockedStakes.balanceOf(_msgSender()) == 0) {
-      s.stakers.remove(_msgSender());
-    }
-
     emit LiquidUnstaked(_msgSender(), _stakeId, amountToUnstake);
   }
 
@@ -393,10 +376,6 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     s.lockedStakes.burnById(lockedTokenId);
     uint256 amountToUnstake = s.lockedStakeIdToInfo[_staker].amount - unlockFee;
     s.stakingToken.safeTransfer(_msgSender(), amountToUnstake);
-
-    if (s.liquidStakes.balanceOf(_msgSender()) == 0 && s.lockedStakes.balanceOf(_msgSender()) == 0) {
-      s.stakers.remove(_msgSender());
-    }
 
     delete s.lockedStakeIdToInfo[_staker];
 

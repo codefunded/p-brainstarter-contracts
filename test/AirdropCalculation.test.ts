@@ -6,7 +6,7 @@ import { LockType } from './helpers/LockType';
 import { calculateAirdrop } from '../scripts/calculateAirdrop';
 describe('AirdropCalculation', () => {
   it('Should calculate airdrop correctly', async () => {
-    const { brains, brainsStaking, dopamine } = await loadFixture(deployBrains);
+    const { brains, brainsStaking, dopamine, liquidStake, lockedStake } = await loadFixture(deployBrains);
 
     const [, user1, user2] = await ethers.getSigners();
 
@@ -19,6 +19,8 @@ describe('AirdropCalculation', () => {
     const airdropRecipients = await calculateAirdrop({
       dopamineAddress: await dopamine.getAddress(),
       brainsStakingAddress: await brainsStaking.getAddress(),
+      liquidStakeAddress: await liquidStake.getAddress(),
+      lockedStakeAddress: await lockedStake.getAddress(),
       blockTimestamp: await ethers.provider.getBlockNumber(),
       amountOfTokensToAirdrop: ethers.parseEther('10000'),
     });
@@ -28,7 +30,7 @@ describe('AirdropCalculation', () => {
   });
 
   it('Should take dopamine into consideration when calculating airdrop', async () => {
-    const { brains, brainsStaking, dopamine } = await loadFixture(deployBrains);
+    const { brains, brainsStaking, dopamine, liquidStake, lockedStake } = await loadFixture(deployBrains);
 
     const [admin, user1, user2] = await ethers.getSigners();
 
@@ -43,6 +45,8 @@ describe('AirdropCalculation', () => {
     const airdropRecipients = await calculateAirdrop({
       dopamineAddress: await dopamine.getAddress(),
       brainsStakingAddress: await brainsStaking.getAddress(),
+      liquidStakeAddress: await liquidStake.getAddress(),
+      lockedStakeAddress: await lockedStake.getAddress(),
       blockTimestamp: await ethers.provider.getBlockNumber(),
       amountOfTokensToAirdrop: ethers.parseEther('10000'),
     });

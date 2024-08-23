@@ -3,6 +3,8 @@ import { ethers } from 'hardhat';
 export interface CalculateAirdropProps {
   dopamineAddress: string;
   brainsStakingAddress: string;
+  lockedStakeAddress: string;
+  liquidStakeAddress: string;
   blockTimestamp: number;
   amountOfTokensToAirdrop: bigint;
   airdropTokenDecimals?: number;
@@ -12,20 +14,33 @@ export interface CalculateAirdropProps {
 export const calculateAirdrop = async ({
   dopamineAddress,
   brainsStakingAddress,
+  lockedStakeAddress,
+  liquidStakeAddress,
   blockTimestamp,
   amountOfTokensToAirdrop,
   airdropTokenDecimals = 18,
   stakingTokenDecimals = 18,
 }: CalculateAirdropProps) => {
   const brainsStaking = await ethers.getContractAt('BrainsStaking', brainsStakingAddress);
+  const lockedStake = await ethers.getContractAt('LockedStake', lockedStakeAddress);
+  const liquidStake = await ethers.getContractAt('LiquidStake', liquidStakeAddress);
   const dopamine = await ethers.getContractAt('Dopamine', dopamineAddress);
 
-  const amountOfStakers = await brainsStaking.getStakersAmount({
-    blockTag: blockTimestamp,
-  });
   const stakers = new Map<string, { dopamine: bigint; stakedAmount: bigint; airdropAmount: bigint }>();
-  for (let i = 0; i < amountOfStakers; i++) {
-    const staker = await brainsStaking.getStakerByIndex(i, {
+  const lockedStakeStakersAmount = await lockedStake.getStakersAmount({ blockTag: blockTimestamp });
+  for (let i = 0; i < lockedStakeStakersAmount; i++) {
+    const staker = await lockedStake.getStakerByIndex(i, {
+      blockTag: blockTimestamp,
+    });
+    stakers.set(staker, {
+      dopamine: ethers.parseEther('1'), // 1X
+      stakedAmount: 0n,
+      airdropAmount: 0n,
+    });
+  }
+  const liquidStakeStakersAmount = await liquidStake.getStakersAmount();
+  for (let i = 0; i < liquidStakeStakersAmount; i++) {
+    const staker = await liquidStake.getStakerByIndex(i, {
       blockTag: blockTimestamp,
     });
     stakers.set(staker, {
