@@ -100,11 +100,11 @@ contract LiquidStake is
     address from = super._update(to, tokenId, auth);
     LiquidStakeStorage storage s = _getStorage();
 
-    if (to == address(0)) {
-      s.stakers.add(to);
-    }
-    if (from == address(0)) {
+    if (from != address(0) && balanceOf(from) == 0) {
       s.stakers.remove(from);
+    }
+    if (to != address(0) && balanceOf(to) > 0) {
+      s.stakers.add(to);
     }
 
     return from;
