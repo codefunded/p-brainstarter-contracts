@@ -9,4 +9,11 @@ export const deploymentConfig = {
       symbol: "$BRAINS",
     },
   },
+  Locker: {
+    args: {
+      preSaleToken: ethers.ZeroAddress,
+      strategicOrPrivateSaleToken: ethers.ZeroAddress,
+      seedToken: ethers.ZeroAddress,
+    },
+  },
 };

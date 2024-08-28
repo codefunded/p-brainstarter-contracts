@@ -1,6 +1,7 @@
 import { time, loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers';
 import { expect } from 'chai';
-import hre, { ethers, upgrades } from 'hardhat';
+import { ethers, upgrades } from 'hardhat';
+import { deployBrains } from './helpers/deploy';
 
 const INITIAL_SUPPLY = ethers.parseEther(String(1_000_000_000n));
 const YEARLY_MINT_LIMIT = ethers.parseEther(String(100_000n));
@@ -39,18 +40,13 @@ describe('Brains', function () {
     it('Should upgrade the contract', async function () {
       const { owner, brains } = await loadFixture(deployBrains);
 
-      const MockUpgradeableTokenFactory =
-        await ethers.getContractFactory('MockUpgradeableToken');
-      await upgrades.upgradeProxy(
-        await brains.getAddress(),
-        MockUpgradeableTokenFactory,
-        {
-          call: {
-            fn: 'initialize',
-            args: [owner.address],
-          },
+      const MockUpgradeableTokenFactory = await ethers.getContractFactory('MockUpgradeableToken');
+      await upgrades.upgradeProxy(await brains.getAddress(), MockUpgradeableTokenFactory, {
+        call: {
+          fn: 'initialize',
+          args: [owner.address],
         },
-      );
+      });
 
       expect(await brains.symbol()).to.equal('MOCK');
       expect(await brains.owner()).to.equal(owner.address);
@@ -96,9 +92,10 @@ describe('Brains', function () {
       await brains.mint(otherAccount.address, amount);
       expect(await brains.balanceOf(otherAccount.address)).to.equal(amount);
 
-      await expect(
-        brains.connect(notAnOwner).mint(notAnOwner.address, amount),
-      ).to.be.revertedWithCustomError(brains, 'OwnableUnauthorizedAccount');
+      await expect(brains.connect(notAnOwner).mint(notAnOwner.address, amount)).to.be.revertedWithCustomError(
+        brains,
+        'OwnableUnauthorizedAccount',
+      );
     });
 
     it('Should not allow minting after 5 years since deployment', async () => {
@@ -111,10 +108,7 @@ describe('Brains', function () {
       await time.increase(time.duration.years(5));
       await time.increase(time.duration.days(2)); // take leap years into account
 
-      await expect(brains.mint(owner.address, amount)).to.be.revertedWithCustomError(
-        brains,
-        'Brains__MintPeriodEnded',
-      );
+      await expect(brains.mint(owner.address, amount)).to.be.revertedWithCustomError(brains, 'Brains__MintPeriodEnded');
     });
 
     it('Should not allow minting more than the yearly limit', async () => {
@@ -139,16 +133,15 @@ describe('Brains', function () {
       const { brains, owner } = await loadFixture(deployBrains);
 
       await brains.mint(owner.address, YEARLY_MINT_LIMIT);
-      await expect(
-        brains.mint(owner.address, YEARLY_MINT_LIMIT),
-      ).to.be.revertedWithCustomError(brains, 'Brains__MintLimitExceeded');
+      await expect(brains.mint(owner.address, YEARLY_MINT_LIMIT)).to.be.revertedWithCustomError(
+        brains,
+        'Brains__MintLimitExceeded',
+      );
 
       await time.increase(time.duration.years(1));
 
       await brains.mint(owner.address, YEARLY_MINT_LIMIT);
-      expect(await brains.totalSupply()).to.be.eq(
-        INITIAL_SUPPLY + YEARLY_MINT_LIMIT * 2n,
-      );
+      expect(await brains.totalSupply()).to.be.eq(INITIAL_SUPPLY + YEARLY_MINT_LIMIT * 2n);
     });
   });
 });

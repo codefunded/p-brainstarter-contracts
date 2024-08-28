@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.20;
 
 import { ERC1967Proxy } from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
@@ -11,14 +10,11 @@ import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { UUPSUpgradeable } from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import { DateTimeLib } from 'solady/src/utils/DateTimeLib.sol';
 
-error Brains__BatchTransferArgsLengthMismatch();
-error Brains__MintPeriodEnded();
-error Brains__MintLimitExceeded(
-  uint256 mintLimit,
-  uint256 triedToMint,
-  uint256 alreadyMintedInYear
-);
+uint256 constant YEARS_WITH_ALLOWED_MINT = 5;
 
+/**
+ * Contract for the BRAINS token.
+ */
 contract Brains is
   Initializable,
   ERC20Upgradeable,
@@ -27,8 +23,6 @@ contract Brains is
   OwnableUpgradeable,
   UUPSUpgradeable
 {
-  uint256 private constant YEARS_WITH_ALLOWED_MINT = 5;
-
   /// @custom:storage-location erc7201:brains.main
   struct MainStorage {
     uint256 contractDeploymentTimestamp;
@@ -36,9 +30,12 @@ contract Brains is
     mapping(uint256 => uint256) mintedInYear;
   }
 
+  error Brains__BatchTransferArgsLengthMismatch();
+  error Brains__MintPeriodEnded();
+  error Brains__MintLimitExceeded(uint256 mintLimit, uint256 triedToMint, uint256 alreadyMintedInYear);
+
   // keccak256(abi.encode(uint256(keccak256('brains.main')) - 1)) & ~bytes32(uint256(0xff));
-  bytes32 private constant MAIN_STORAGE_LOCATION =
-    0xabe2c6f19744d867ea22b9a7c2a8864c93576dec52f49e61303eebf176d22800;
+  bytes32 private constant MAIN_STORAGE_LOCATION = 0xabe2c6f19744d867ea22b9a7c2a8864c93576dec52f49e61303eebf176d22800;
 
   function _getMainStorage() private pure returns (MainStorage storage $) {
     assembly {
@@ -72,43 +69,44 @@ contract Brains is
     _mint(_msgSender(), _initialSupply);
   }
 
-  function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+  // ***************** PUBLIC FUNCTIONS *****************
 
-  function burn(uint256 amount) public override {
-    _burn(_msgSender(), amount);
-  }
-
-  function batchTransfer(
-    address[] calldata recipients,
-    uint256[] calldata amounts
-  ) public {
-    if (recipients.length != amounts.length) {
-      revert Brains__BatchTransferArgsLengthMismatch();
-    }
+  function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) public {
+    require(recipients.length == amounts.length, Brains__BatchTransferArgsLengthMismatch());
 
     for (uint256 i = 0; i < recipients.length; i++) {
       transfer(recipients[i], amounts[i]);
     }
   }
 
+  /**
+   * This function allows the owner to mint new tokens but only for a limited time. In the project's
+   * whitepaper, a period of 5 years is specified after which no more minting is allowed. Also, there's
+   * a yearly limit for minting new tokens.
+   * @param account to mint to
+   * @param amount to mint
+   */
   function mint(address account, uint256 amount) public onlyOwner {
     MainStorage storage s = _getMainStorage();
 
-    if (
-      DateTimeLib.addYears(s.contractDeploymentTimestamp, YEARS_WITH_ALLOWED_MINT) <
-      block.timestamp
-    ) {
-      revert Brains__MintPeriodEnded();
-    }
+    require(
+      block.timestamp < DateTimeLib.addYears(s.contractDeploymentTimestamp, YEARS_WITH_ALLOWED_MINT),
+      Brains__MintPeriodEnded()
+    );
 
     (uint currentYear, , ) = DateTimeLib.timestampToDate(block.timestamp);
     s.mintedInYear[currentYear] += amount;
     uint256 alreadyMintedInYear = s.mintedInYear[currentYear];
 
-    if (alreadyMintedInYear > s.yearlyMintLimit) {
-      revert Brains__MintLimitExceeded(s.yearlyMintLimit, amount, alreadyMintedInYear);
-    }
+    require(
+      alreadyMintedInYear <= s.yearlyMintLimit,
+      Brains__MintLimitExceeded(s.yearlyMintLimit, amount, alreadyMintedInYear)
+    );
 
     _mint(account, amount);
   }
+
+  // ***************** INTERNAL FUNCTIONS *****************
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 }

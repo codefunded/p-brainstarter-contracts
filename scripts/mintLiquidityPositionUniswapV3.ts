@@ -48,9 +48,7 @@ export async function mintLiquidtyPositionUniswapV3({
 }: MintLiquidityPositionUniswapV3Args) {
   const isABigger = BigInt(tokenAAddress) > BigInt(tokenBAddress);
   if (isABigger) {
-    throw new Error(
-      'Order tokens by address in ascending order, otherwise Uniswap will fail',
-    );
+    throw new Error('Order tokens by address in ascending order, otherwise Uniswap will fail');
   }
   const tokenA = await ethers.getContractAt('ERC20Upgradeable', tokenAAddress);
   const tokenB = await ethers.getContractAt('ERC20Upgradeable', tokenBAddress);
@@ -67,9 +65,7 @@ export async function mintLiquidtyPositionUniswapV3({
   const [deployer] = await ethers.getSigners();
 
   console.log('Creating pool if necessary');
-  await (
-    nonfungiblePositionManager.connect(deployer) as any
-  ).createAndInitializePoolIfNecessary(
+  await (nonfungiblePositionManager.connect(deployer) as any).createAndInitializePoolIfNecessary(
     tokenAAddress,
     tokenBAddress,
     FeeAmount.MEDIUM,
@@ -84,14 +80,8 @@ export async function mintLiquidtyPositionUniswapV3({
   console.log('Pool address:', poolAddress);
 
   console.log('Approving tokens');
-  await tokenA.approve(
-    UNISWAP_V3_CORE_POLYGON_DEPLOYMENTS.NonfungiblePositionManager,
-    tokenAAmount,
-  );
-  await tokenB.approve(
-    UNISWAP_V3_CORE_POLYGON_DEPLOYMENTS.NonfungiblePositionManager,
-    tokenBAmount,
-  );
+  await tokenA.approve(UNISWAP_V3_CORE_POLYGON_DEPLOYMENTS.NonfungiblePositionManager, tokenAAmount);
+  await tokenB.approve(UNISWAP_V3_CORE_POLYGON_DEPLOYMENTS.NonfungiblePositionManager, tokenBAmount);
 
   const poolContract = await ethers.getContractAt(UniswapV3PoolABI.abi, poolAddress);
 
@@ -130,10 +120,7 @@ export async function mintLiquidtyPositionUniswapV3({
     slippageTolerance: new Percent(50, 10_000),
   };
 
-  const { calldata, value } = NonfungiblePositionManager.addCallParameters(
-    position,
-    mintOptions,
-  );
+  const { calldata, value } = NonfungiblePositionManager.addCallParameters(position, mintOptions);
 
   console.log('Adding liquidity');
   await deployer.sendTransaction({
