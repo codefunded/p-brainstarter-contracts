@@ -6,9 +6,12 @@ import { IERC20, SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/Saf
 import { OwnableUpgradeable } from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import { UUPSUpgradeable } from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import { DateTimeLib } from 'solady/src/utils/DateTimeLib.sol';
 import { LockedStake } from './LockedStake.sol';
 import { LiquidStake } from './LiquidStake.sol';
 import { UnlockFeeCalculator, LockType } from './UnlockFeeCalculator.sol';
+
+uint32 constant TGE_EVENT_TIMESTAMP = 1714435200; // 2024-04-30 00:00:00 UTC
 
 /**
  * Contract for locking and staking $BRAINS tokens. Depending on the amount of tokens staked by the user,
@@ -320,7 +323,11 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     s.lockedStakeIdToInfo[_staker].amount = _stakeAmount;
     s.lockedStakeIdToInfo[_staker].stakeType = StakeType.Locked;
     s.lockedStakeIdToInfo[_staker].lockType = _lockType;
-    s.lockedStakeIdToInfo[_staker].stakedAt = block.timestamp;
+    if (_lockType == LockType.StrategicOrPrivate || _lockType == LockType.Seed) {
+      s.lockedStakeIdToInfo[_staker].stakedAt = TGE_EVENT_TIMESTAMP;
+    } else {
+      s.lockedStakeIdToInfo[_staker].stakedAt = block.timestamp;
+    }
 
     emit LockedStaked(_staker, lockedStakeId, _stakeAmount);
   }
@@ -334,7 +341,11 @@ contract BrainsStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable {
       s.liquidStakeIdToInfo[liquidStakeIds[i]].amount = s.liquidStakeThreshold;
       s.liquidStakeIdToInfo[liquidStakeIds[i]].stakeType = StakeType.Liquid;
       s.liquidStakeIdToInfo[liquidStakeIds[i]].lockType = _lockType;
-      s.liquidStakeIdToInfo[liquidStakeIds[i]].stakedAt = block.timestamp;
+      if (_lockType == LockType.StrategicOrPrivate || _lockType == LockType.Seed) {
+        s.lockedStakeIdToInfo[_staker].stakedAt = TGE_EVENT_TIMESTAMP;
+      } else {
+        s.lockedStakeIdToInfo[_staker].stakedAt = block.timestamp;
+      }
 
       emit LiquidStaked(_staker, liquidStakeIds[i], s.liquidStakeThreshold);
     }
