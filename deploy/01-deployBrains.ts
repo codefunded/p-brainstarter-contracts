@@ -34,4 +34,4 @@ const deployBrains: DeployFunction = async function ({
 
 export default deployBrains;
 
-deployBrains.tags = [];
+deployBrains.tags = ['brains', 'all'];

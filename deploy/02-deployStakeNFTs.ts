@@ -1,9 +1,10 @@
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, upgrades } from 'hardhat';
 
-const deployStakeNFTs: DeployFunction = async function ({ getUnnamedAccounts, deployments }) {
+const deployStakeNFTs: DeployFunction = async function ({ getNamedAccounts, deployments }) {
   const { log, save } = deployments;
-  const [deployer] = await getUnnamedAccounts();
+  const { owner } = await getNamedAccounts();
+  const deployer = owner;
 
   const LockedStakeFactory = await ethers.getContractFactory('LockedStake');
   const lockedStakeProxy = await upgrades.deployProxy(LockedStakeFactory, [deployer], {
@@ -34,4 +35,4 @@ const deployStakeNFTs: DeployFunction = async function ({ getUnnamedAccounts, de
 
 export default deployStakeNFTs;
 
-deployStakeNFTs.tags = [];
+deployStakeNFTs.tags = ['stakeNft', 'all'];

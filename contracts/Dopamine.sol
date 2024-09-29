@@ -29,10 +29,10 @@ contract Dopamine is
   }
 
   function initialize(address initialOwner) public initializer {
-    __ERC20_init('Dopamine', 'DPM');
+    __ERC20_init('$DOPAMINE', '$DOPAMINE');
     __ERC20Burnable_init();
     __Ownable_init(initialOwner);
-    __ERC20Permit_init('Dopamine');
+    __ERC20Permit_init('$DOPAMINE');
     __UUPSUpgradeable_init();
   }
 
