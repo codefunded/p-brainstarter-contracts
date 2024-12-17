@@ -1,14 +1,13 @@
 import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, upgrades } from 'hardhat';
-import { deploymentConfig } from '../deploymentConfig';
 
-const deployDopamine: DeployFunction = async function ({ getUnnamedAccounts, deployments }) {
+const deployDopamine: DeployFunction = async function ({ getNamedAccounts, deployments }) {
   const { log } = deployments;
-  const [deployer] = await getUnnamedAccounts();
+  const { owner } = await getNamedAccounts();
 
   const DopamineFactory = await ethers.getContractFactory('Dopamine');
 
-  const dopamine = await upgrades.deployProxy(DopamineFactory, [deployer], {
+  const dopamine = await upgrades.deployProxy(DopamineFactory, [owner], {
     kind: 'uups',
   });
   await dopamine.waitForDeployment();
@@ -19,4 +18,4 @@ const deployDopamine: DeployFunction = async function ({ getUnnamedAccounts, dep
 
 export default deployDopamine;
 
-deployDopamine.tags = [];
+deployDopamine.tags = ["all", "dopamine"];

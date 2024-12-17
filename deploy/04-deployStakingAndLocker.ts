@@ -2,9 +2,10 @@ import { DeployFunction } from 'hardhat-deploy/types';
 import { ethers, upgrades } from 'hardhat';
 import { deploymentConfig } from '../deploymentConfig';
 
-const deployStakeNFTs: DeployFunction = async function ({ getUnnamedAccounts, deployments }) {
+const deployStakingAndLocker: DeployFunction = async function ({ getNamedAccounts, deployments }) {
   const { log, get } = deployments;
-  const [deployer] = await getUnnamedAccounts();
+  const { owner } = await getNamedAccounts();
+  const deployer = owner;
 
   const brains = await get('Brains');
   const liquidStakeDeployment = await get('LiquidStake');
@@ -21,18 +22,20 @@ const deployStakeNFTs: DeployFunction = async function ({ getUnnamedAccounts, de
     },
   );
   await brainsStakingProxy.waitForDeployment();
-  log(`BrainsStaking: ${await brainsStakingProxy.getAddress()}`);
+  const stakingAddress = await brainsStakingProxy.getAddress();
+  log(`BrainsStaking: ${stakingAddress}`);
 
   await lockedStake.grantRole(await lockedStake.MANAGER_ROLE(), await brainsStakingProxy.getAddress());
-
+  log(`Executed grantRole lockedStake manager role to proxy`);
   await liquidStake.grantRole(await liquidStake.MANAGER_ROLE(), await brainsStakingProxy.getAddress());
+  log(`Executed grantRole liquidStake manager role to proxy`);
 
   const ReceiptLocker = await ethers.getContractFactory('BrainsReceiptLocker');
   const receiptLocker = await upgrades.deployProxy(
     ReceiptLocker,
     [
       deployer,
-      await brainsStakingProxy.getAddress(),
+      stakingAddress,
       brains.address,
       deploymentConfig.Locker.args.preSaleToken,
       deploymentConfig.Locker.args.strategicOrPrivateSaleToken,
@@ -48,6 +51,6 @@ const deployStakeNFTs: DeployFunction = async function ({ getUnnamedAccounts, de
   log('-----Staking and Locker deployed-----');
 };
 
-export default deployStakeNFTs;
+export default deployStakingAndLocker;
 
-deployStakeNFTs.tags = [];
+deployStakingAndLocker.tags = ['stake', 'all'];
